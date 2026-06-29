@@ -1,0 +1,78 @@
+# pubspec.yaml
+name: betwise
+description: Virtual Betting Simulator - Educational Anti-Gambling App
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+  flutter: '>=3.22.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # ── Firebase ──────────────────────────────────────
+  firebase_core: ^3.3.0
+  firebase_auth: ^5.1.0
+  cloud_firestore: ^5.2.0
+  firebase_storage: ^12.1.0       # lưu ảnh export simulation
+
+  # ── State Management ──────────────────────────────
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+  freezed_annotation: ^2.4.1
+
+  # ── Navigation ────────────────────────────────────
+  go_router: ^14.2.0
+
+  # ── Google Sign In ────────────────────────────────
+  google_sign_in: ^6.2.1
+
+  # ── HTTP & API ────────────────────────────────────
+  dio: ^5.6.0                     # gọi football-data.org & Gemini API
+  retrofit: ^4.4.1                # generate API client tự động
+
+  # ── Local Database ────────────────────────────────
+  sqflite: ^2.3.3+1               # cache trận đấu local
+  path: ^1.9.0
+
+  # ── Animation ─────────────────────────────────────
+  confetti: ^0.7.0
+  shimmer: ^3.0.0
+  lottie: ^3.1.2                  # file .json animation (nổ hũ, cảnh báo)
+
+  # ── Notification ──────────────────────────────────
+  flutter_local_notifications: ^17.2.1
+  timezone: ^0.9.4
+
+  # ── Charts & Visualization ────────────────────────
+  fl_chart: ^0.68.0               # biểu đồ Monte Carlo, lịch sử số dư
+
+  # ── UI Utilities ──────────────────────────────────
+  cached_network_image: ^3.4.0    # cache logo đội bóng
+  flutter_svg: ^2.0.10+1          # icon SVG
+  gap: ^3.0.1                     # spacing widget
+  intl: ^0.19.0                   # format tiền tệ, ngày giờ
+
+  # ── Utils ─────────────────────────────────────────
+  equatable: ^2.0.5
+  logger: ^2.4.0
+  shared_preferences: ^2.3.1      # lưu setting nhỏ local
+  url_launcher: ^6.3.0            # mở link video TikTok cảnh báo
+  share_plus: ^10.0.0             # share ảnh kết quả simulation
+  image_gallery_saver: ^2.0.3     # lưu ảnh export xuống máy
+  connectivity_plus: ^6.0.3       # check kết nối mạng
+  package_info_plus: ^8.0.2       # lấy version app
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  build_runner: ^2.4.11
+  freezed: ^2.5.2
+  riverpod_generator: ^2.4.3
+  retrofit_generator: ^9.7.0
+  json_serializable: ^6.8.0
+  flutter_lints: ^4.0.0
+  mockito: ^5.4.4                 # mock test
+  fake_cloud_firestore: ^3.0.3    # mock Firestore test
+  firebase_auth_mocks: ^0.14.0    # mock Firebase Auth test
