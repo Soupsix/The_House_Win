@@ -151,17 +151,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                                GestureDetector(
-                                  onTap: () => context.push(AppRoutes.forgot),
-                                  child: const Text(
-                                    'Quên mật khẩu?',
-                                    style: TextStyle(
-                                      color: Color(0xFFA0A0B0),
-                                      fontSize: 12,
-                                      decoration: TextDecoration.underline,
-                                    ),
-                                  ),
-                                ),
                               ],
                             ),
                             const SizedBox(height: 8),
@@ -197,6 +186,21 @@ class _LoginScreenState extends State<LoginScreen> {
                                 }
                                 return null;
                               },
+                            ),
+                            const SizedBox(height: 12),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: GestureDetector(
+                                onTap: () => context.push(AppRoutes.forgot),
+                                child: const Text(
+                                  'Quên mật khẩu?',
+                                  style: TextStyle(
+                                    color: Color(0xFFA0A0B0),
+                                    fontSize: 12,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
                             ),
                           ],
                         ),
