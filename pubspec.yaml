@@ -21,6 +21,7 @@ dependencies:
   flutter_riverpod: ^2.5.1
   riverpod_annotation: ^2.3.5
   freezed_annotation: ^2.4.1
+  json_annotation: ^4.9.0
 
   # ── Navigation ────────────────────────────────────
   go_router: ^14.2.0
@@ -30,6 +31,7 @@ dependencies:
 
   # ── HTTP & API ────────────────────────────────────
   dio: ^5.6.0                     # gọi football-data.org & Gemini API
+  flutter_dotenv: ^5.2.1
   
 
   # ── Local Database ────────────────────────────────
@@ -60,7 +62,7 @@ dependencies:
   shared_preferences: ^2.3.1      # lưu setting nhỏ local
   url_launcher: ^6.3.0            # mở link video TikTok cảnh báo
   share_plus: ^10.0.0             # share ảnh kết quả simulation
-  image_gallery_saver: ^2.0.3     # lưu ảnh export xuống máy
+  saver_gallery: ^3.0.6           # lưu ảnh export simulation
   connectivity_plus: ^6.0.3       # check kết nối mạng
   package_info_plus: ^8.0.2       # lấy version app
 
@@ -75,3 +77,6 @@ dev_dependencies:
   mockito: ^5.4.4                 # mock test
   fake_cloud_firestore: ^3.0.3    # mock Firestore test
   firebase_auth_mocks: ^0.14.0    # mock Firebase Auth test
+
+flutter:
+  uses-material-design: true #Turn on icon + theme
