@@ -1,6 +1,17 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'auth_state.dart';
 import 'auth_notifier.dart';
+import '../../data/repositories/auth_repository_impl.dart';
+import '../../domain/models/user_model.dart';
+import '../../domain/enums/auth_status.dart';
 
-final authProvider = StateNotifierProvider<AuthNotifier, AsyncValue<void>>((ref) {
-  return AuthNotifier();
-});
+final authRepositoryProvider = Provider((ref) => AuthRepositoryImpl());
+
+final authProvider = StateNotifierProvider<AuthNotifier, AuthState>(
+  (ref) => AuthNotifier(ref.read(authRepositoryProvider))..initialize(),
+);
+
+// Convenience providers for other modules to use
+final currentUserProvider = Provider((ref) => ref.watch(authProvider).user);
+final isAdminProvider = Provider((ref) => ref.watch(authProvider).isAdmin);
+final authStatusProvider = Provider((ref) => ref.watch(authProvider).status);
