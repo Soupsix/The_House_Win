@@ -150,10 +150,10 @@ class FirestoreService {
     });
   }
 
-  // Admin rút tiền từ ví người chơi
-  Future<void> runAdminWithdrawTransaction({
+  // Admin chỉnh sửa số dư ví người chơi
+  Future<void> runAdminEditBalanceTransaction({
     required String uid,
-    required double amount,
+    required double newBalance,
   }) async {
     final walletRef = _firestore.collection('wallets').doc(uid);
     final transactionRef = _firestore.collection('transactions').doc();
@@ -164,19 +164,14 @@ class FirestoreService {
         throw Exception("Ví ảo không tồn tại");
       }
 
-      final data = walletDoc.data()!;
-      final balance = (data['balance'] as num?)?.toDouble() ?? 0.0;
-
-      final nextBalance = (balance - amount < 0) ? 0.0 : balance - amount;
-
       transaction.update(walletRef, {
-        'balance': nextBalance,
+        'balance': newBalance,
       });
 
       transaction.set(transactionRef, {
         'userId': uid,
-        'type': 'ADMIN_WITHDRAW',
-        'amount': amount,
+        'type': 'ADMIN_EDIT_BALANCE',
+        'amount': newBalance,
         'createdAt': FieldValue.serverTimestamp(),
       });
     });
@@ -304,8 +299,155 @@ class FirestoreService {
 
   // --- Simulations ---
 
+  // --- Simulations ---
+
   // Lưu kết quả mô phỏng Monte Carlo vào Firestore simulations/{auto-id}
   Future<void> saveSimulationResult(Map<String, dynamic> data) async {
     await _firestore.collection('simulations').add(data);
   }
+
+  // --- Admin Streams and Methods ---
+
+  // Theo dõi danh sách tất cả người dùng
+  Stream<List<UserModel>> watchAllUsers() {
+    return _firestore.collection('users').snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => UserModel.fromFirestore(doc)).toList();
+    });
+  }
+
+  // Theo dõi danh sách tất cả ví để lấy balance
+  Stream<List<Map<String, dynamic>>> watchAllWallets() {
+    return _firestore.collection('wallets').snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'userId': doc.id,
+          'balance': (data['balance'] as num?)?.toDouble() ?? 0.0,
+          'lockedAmount': (data['lockedAmount'] as num?)?.toDouble() ?? 0.0,
+          'isBroke': data['isBroke'] as bool? ?? false,
+        };
+      }).toList();
+    });
+  }
+
+  // Theo dõi yêu cầu rút tiền đang chờ duyệt (pending)
+  Stream<List<Map<String, dynamic>>> watchWithdrawalRequests() {
+    return _firestore
+        .collection('withdrawal_requests')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'userId': data['userId'] ?? '',
+          'displayName': data['displayName'] ?? '',
+          'amount': (data['amount'] as num?)?.toDouble() ?? 0.0,
+          'method': data['method'] ?? 'Bank Transfer',
+          'status': data['status'] ?? 'pending',
+          'createdAt': (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        };
+      }).toList();
+    });
+  }
+
+  // Theo dõi log hoạt động của admin
+  Stream<List<Map<String, dynamic>>> watchAdminLogs() {
+    return _firestore
+        .collection('admin_logs')
+        .orderBy('timestamp', descending: true)
+        .limit(50)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'action': data['action'] ?? '',
+          'details': data['details'] as Map<String, dynamic>? ?? {},
+          'timestamp': (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        };
+      }).toList();
+    });
+  }
+
+  // Duyệt yêu cầu rút tiền: trừ tiền trong ví và cập nhật trạng thái yêu cầu
+  Future<void> runApproveWithdrawTransaction({
+    required String requestId,
+    required String uid,
+    required double amount,
+  }) async {
+    final walletRef = _firestore.collection('wallets').doc(uid);
+    final requestRef = _firestore.collection('withdrawal_requests').doc(requestId);
+    final transactionRef = _firestore.collection('transactions').doc();
+
+    await _firestore.runTransaction((transaction) async {
+      final walletDoc = await transaction.get(walletRef);
+      if (!walletDoc.exists) {
+        throw Exception("Ví ảo không tồn tại");
+      }
+
+      final data = walletDoc.data()!;
+      final balance = (data['balance'] as num?)?.toDouble() ?? 0.0;
+
+      if (balance < amount) {
+        throw Exception("Số dư ví không đủ để duyệt yêu cầu rút tiền này");
+      }
+
+      transaction.update(walletRef, {
+        'balance': balance - amount,
+      });
+
+      // Xóa yêu cầu rút tiền sau khi duyệt thành công
+      transaction.delete(requestRef);
+
+      // Thêm log giao dịch
+      transaction.set(transactionRef, {
+        'userId': uid,
+        'type': 'WITHDRAW_APPROVED',
+        'amount': amount,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  // Từ chối yêu cầu rút tiền
+  Future<void> rejectWithdrawRequest({required String requestId}) async {
+    await _firestore.collection('withdrawal_requests').doc(requestId).delete();
+  }
+
+  // Thay đổi quyền Admin của người dùng
+  Future<void> toggleUserAdminStatus(String uid, bool isAdmin) async {
+    await _firestore.collection('users').doc(uid).update({
+      'isAdmin': isAdmin,
+    });
+  }
+
+  // Seed dữ liệu yêu cầu rút tiền mẫu để kiểm thử
+  Future<void> seedMockWithdrawalRequests(String uid, String displayName) async {
+    final List<Map<String, dynamic>> mocks = [
+      {
+        'userId': uid,
+        'displayName': displayName,
+        'amount': 250000.0,
+        'method': 'Bank Transfer',
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+      },
+      {
+        'userId': uid,
+        'displayName': displayName,
+        'amount': 500000.0,
+        'method': 'Crypto Wallet',
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+      }
+    ];
+
+    for (var mock in mocks) {
+      await _firestore.collection('withdrawal_requests').add(mock);
+    }
+  }
 }
+

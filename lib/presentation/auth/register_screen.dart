@@ -57,15 +57,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
       body: Consumer(
         builder: (context, ref, child) {
-          // Listen to state errors
+          // Listen to state errors/success
           ref.listen(authProvider, (previous, next) {
             if (next.errorMessage != null && next.errorMessage != previous?.errorMessage) {
+              final isSuccess = next.errorMessage!.contains('thành công');
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(next.errorMessage!),
-                  backgroundColor: const Color(0xFFE94560),
+                  backgroundColor: isSuccess ? const Color(0xFF00D4AA) : const Color(0xFFE94560),
                 ),
               );
+              
+              if (isSuccess) {
+                context.go(AppRoutes.login);
+              }
             }
           });
 
