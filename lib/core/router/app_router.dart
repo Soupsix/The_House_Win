@@ -43,9 +43,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isAdmin = authState.isAdmin;
       final location = state.uri.path;
 
+      print('=== ROUTER REDIRECT ===');
+      print('Location: $location, Status: $status, IsAdmin: $isAdmin');
+
       // 1. Unknown status -> show SplashScreen
       if (status == AuthStatus.unknown) {
         if (location != AppRoutes.splash) {
+          print('Redirecting to Splash');
           return AppRoutes.splash;
         }
         return null;
@@ -58,12 +62,15 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       if (status == AuthStatus.unauthenticated) {
         if (location == AppRoutes.splash) {
+          print('Redirecting to Home (Guest)');
           return AppRoutes.home; // Guest allowed to enter home
         }
         if (location == AppRoutes.admin || location == AppRoutes.personalInfo) {
+          print('Redirecting to Login (Protected)');
           return AppRoutes.login;
         }
         if (location != AppRoutes.home && !isAuthRoute) {
+          print('Redirecting to Login (Non-auth route)');
           return AppRoutes.login;
         }
         return null;
@@ -72,15 +79,19 @@ final routerProvider = Provider<GoRouter>((ref) {
       // 3. Authenticated + on login/register/forgot -> redirect to /home or /admin
       if (status == AuthStatus.authenticated) {
         if (isAuthRoute || location == AppRoutes.splash) {
-          return isAdmin ? AppRoutes.admin : AppRoutes.home;
+          final target = isAdmin ? AppRoutes.admin : AppRoutes.home;
+          print('Redirecting from auth route to $target');
+          return target;
         }
 
         // 4. Authenticated but isAdmin=false + trying to access /admin -> redirect to /home
         if (location == AppRoutes.admin && !isAdmin) {
+          print('Redirecting non-admin away from Admin to Home');
           return AppRoutes.home;
         }
       }
 
+      print('No redirect required');
       return null;
     },
     routes: [

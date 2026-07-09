@@ -29,7 +29,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
           errorMessage: null,
         );
       }
-    }, onError: (error) {
+    }, onError: (error, stack) {
+      print('=== ERROR IN USERSTREAM ===');
+      print('Error: $error');
+      print('Stacktrace: $stack');
       state = state.copyWith(
         errorMessage: _mapFirebaseError(error),
       );
@@ -39,12 +42,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> register(String name, String email, String password, String phoneNumber) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      final user = await _authRepository.register(name, email, password, phoneNumber);
+      await _authRepository.register(name, email, password, phoneNumber);
+      
+      // Đăng ký xong thì Sign Out ngay để không tự động đăng nhập vào Home
+      await _authRepository.signOut();
+      
       state = state.copyWith(
-        status: AuthStatus.authenticated,
-        user: user,
+        status: AuthStatus.unauthenticated,
+        user: null,
         isAdmin: false,
         isLoading: false,
+        errorMessage: "Đăng ký tài khoản thành công! Vui lòng đăng nhập.",
       );
     } catch (e) {
       state = state.copyWith(
@@ -64,7 +72,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isAdmin: user.isAdmin,
         isLoading: false,
       );
-    } catch (e) {
+    } catch (e, stack) {
+      print('=== ERROR IN SIGNIN ===');
+      print('Error: $e');
+      print('Stacktrace: $stack');
       state = state.copyWith(
         errorMessage: _mapFirebaseError(e),
         isLoading: false,

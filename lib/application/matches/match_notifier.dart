@@ -212,4 +212,56 @@ class MatchNotifier extends StateNotifier<MatchState> {
       );
     }
   }
+
+  // Admin cập nhật tỷ lệ cược của trận đấu
+  Future<void> adminUpdateOdds({
+    required String matchId,
+    required double oddsOver,
+    required double oddsUnder,
+    required double overUnderLine,
+  }) async {
+    state = state.copyWith(isRefreshing: true, errorMessage: null);
+    try {
+      // 1. Đọc trận đấu hiện tại từ local state
+      final allMatches = [
+        ...state.scheduledMatches,
+        ...state.liveMatches,
+        ...state.finishedMatches
+      ];
+      final match = allMatches.firstWhere((m) => m.id == matchId);
+      final updatedMatch = match.copyWith(
+        oddsOver: oddsOver,
+        oddsUnder: oddsUnder,
+        overUnderLine: overUnderLine,
+      );
+
+      // 2. Lưu vào Firestore
+      await _firestoreService.saveMatchInFirestore(matchId, updatedMatch.toFirestore());
+
+      // 3. Lưu vào SQLite
+      final db = await _dbHelper.database;
+      await db.update(
+        'match_cache',
+        updatedMatch.toSQLite(),
+        where: 'id = ?',
+        whereArgs: [matchId],
+      );
+
+      // 4. Ghi log hành động admin
+      await _firestoreService.writeAdminLog('UPDATE_MATCH_ODDS', {
+        'matchId': matchId,
+        'oddsOver': oddsOver,
+        'oddsUnder': oddsUnder,
+        'overUnderLine': overUnderLine,
+      });
+
+      await loadFromCache();
+    } catch (e) {
+      state = state.copyWith(
+        isRefreshing: false,
+        errorMessage: 'Lỗi khi cập nhật tỷ lệ cược: $e',
+      );
+    }
+  }
 }
+

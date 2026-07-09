@@ -91,7 +91,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           'Đăng nhập',
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                         ),
-                        onPressed: () => context.push(AppRoutes.login),
+                        onPressed: () => context.go(AppRoutes.login),
                       ),
                     ),
                   ),

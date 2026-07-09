@@ -128,19 +128,19 @@ class WalletNotifier extends StateNotifier<WalletState> {
     }
   }
 
-  // Admin thực hiện rút tiền từ ví của người chơi
-  Future<void> adminWithdraw(String uid, double amount) async {
+  // Admin thực hiện chỉnh sửa số dư ví của người chơi
+  Future<void> adminEditBalance(String uid, double newBalance) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      await _firestoreService.runAdminWithdrawTransaction(
+      await _firestoreService.runAdminEditBalanceTransaction(
         uid: uid,
-        amount: amount,
+        newBalance: newBalance,
       );
       await loadWallet(uid);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: 'Rút tiền thất bại: $e',
+        errorMessage: 'Chỉnh sửa số dư thất bại: $e',
       );
     }
   }

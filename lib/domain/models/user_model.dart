@@ -23,13 +23,36 @@ class UserModel with _$UserModel {
     if (data == null) {
       throw Exception("User data cannot be null");
     }
+
+    // Safe casting for isAdmin
+    final isAdminRaw = data['isAdmin'];
+    bool isAdmin = false;
+    if (isAdminRaw is bool) {
+      isAdmin = isAdminRaw;
+    } else if (isAdminRaw is String) {
+      isAdmin = isAdminRaw.toLowerCase() == 'true';
+    } else if (isAdminRaw is num) {
+      isAdmin = isAdminRaw == 1;
+    }
+
+    // Safe casting for createdAt
+    final createdAtRaw = data['createdAt'];
+    DateTime createdAt = DateTime.now();
+    if (createdAtRaw is Timestamp) {
+      createdAt = createdAtRaw.toDate();
+    } else if (createdAtRaw is String) {
+      createdAt = DateTime.tryParse(createdAtRaw) ?? DateTime.now();
+    } else if (createdAtRaw is int) {
+      createdAt = DateTime.fromMillisecondsSinceEpoch(createdAtRaw);
+    }
+
     return UserModel(
       uid: doc.id,
-      email: data['email'] as String? ?? '',
-      displayName: data['displayName'] as String? ?? '',
-      isAdmin: data['isAdmin'] as bool? ?? false,
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      phoneNumber: data['phoneNumber'] as String? ?? '',
+      email: data['email']?.toString() ?? '',
+      displayName: data['displayName']?.toString() ?? '',
+      isAdmin: isAdmin,
+      createdAt: createdAt,
+      phoneNumber: data['phoneNumber']?.toString() ?? '',
     );
   }
 }

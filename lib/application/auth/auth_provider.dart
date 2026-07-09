@@ -2,8 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'auth_state.dart';
 import 'auth_notifier.dart';
 import '../../data/repositories/auth_repository_impl.dart';
-import '../../domain/models/user_model.dart';
-import '../../domain/enums/auth_status.dart';
 
 final authRepositoryProvider = Provider((ref) => AuthRepositoryImpl());
 
