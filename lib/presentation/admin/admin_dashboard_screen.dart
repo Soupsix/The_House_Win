@@ -365,15 +365,24 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ),
             ),
           ),
-          const Row(
+          Row(
             children: [
-              IconButton(
-                icon: Icon(Icons.notifications_none, color: Color(0xFFE2E2E2)),
+              const IconButton(
+                icon: Icon(
+                  Icons.notifications_none,
+                  color: Color(0xFFE2E2E2),
+                ),
                 onPressed: null,
               ),
               IconButton(
-                icon: Icon(Icons.settings_outlined, color: Color(0xFFE2E2E2)),
-                onPressed: null,
+                icon: const Icon(
+                  Icons.settings_outlined,
+                  color: Color(0xFFE2E2E2),
+                ),
+                tooltip: 'Cấu hình Admin',
+                  onPressed: () {
+                    _showAdminSettingsDialog(context);
+                  }
               ),
             ],
           ),
@@ -461,7 +470,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       case 1:
         return _buildPlayersTab(adminState, adminNotifier);
       case 2:
-        return _buildMatchesTab(liveMatches, scheduledMatches);
+        return _buildMatchesTab(
+          adminState,
+          adminNotifier,
+          liveMatches,
+          scheduledMatches,
+        );
       case 3:
         return _buildLogsTab(adminState);
       default:
@@ -762,7 +776,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   itemCount: liveMatches.length,
                   itemBuilder: (context, index) {
                     final match = liveMatches[index];
-                    return _buildMatchAdminCard(match);
+                    return _buildMatchAdminCard(
+                      match,
+                      adminState,
+                      adminNotifier,
+                    );
                   },
                 ),
             ],
@@ -1207,7 +1225,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   // ==========================================
   // VIEW: TAB 2 - MATCHES MANAGEMENT VIEW
   // ==========================================
-  Widget _buildMatchesTab(List<MatchModel> liveMatches, List<MatchModel> scheduledMatches) {
+  Widget _buildMatchesTab(
+      AdminState adminState,
+      AdminNotifier adminNotifier,
+      List<MatchModel> liveMatches,
+      List<MatchModel> scheduledMatches,
+      ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1253,7 +1276,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             itemCount: liveMatches.length,
             itemBuilder: (context, index) {
               final match = liveMatches[index];
-              return _buildMatchAdminCard(match);
+              return _buildMatchAdminCard(
+                match,
+                adminState,
+                adminNotifier,
+              );
             },
           ),
           const SizedBox(height: 24),
@@ -1270,7 +1297,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             itemCount: scheduledMatches.length,
             itemBuilder: (context, index) {
               final match = scheduledMatches[index];
-              return _buildMatchAdminCard(match);
+              return _buildMatchAdminCard(
+                match,
+                adminState,
+                adminNotifier,
+              );
             },
           ),
         ],
@@ -1288,9 +1319,20 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildMatchAdminCard(MatchModel match) {
+  Widget _buildMatchAdminCard(
+      MatchModel match,
+      AdminState adminState,
+      AdminNotifier adminNotifier,
+      ) {
     final format = DateFormat('dd/MM HH:mm');
     final timeStr = format.format(match.utcDate);
+    final firestoreMatch = adminState.matches.cast<Map<String, dynamic>?>().firstWhere(
+          (item) => item?['id']?.toString() == match.id,
+      orElse: () => null,
+    );
+
+    final isBettingLocked =
+        firestoreMatch?['isBettingLocked'] as bool? ?? false;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -1401,31 +1443,81 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            Row(
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
               children: [
-                Expanded(
+                SizedBox(
+                  width: 180,
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFFFFB2B7),
-                      side: const BorderSide(color: Color(0xFFFFB2B7)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      side: const BorderSide(
+                        color: Color(0xFFFFB2B7),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     icon: const Icon(Icons.edit, size: 16),
                     label: const Text('Sửa kèo'),
-                    onPressed: () => _showEditOddsDialog(context, match),
+                    onPressed: () => _showEditOddsDialog(
+                      context,
+                      match,
+                      adminNotifier,
+                    ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
+                SizedBox(
+                  width: 180,
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFFB95A),
                       foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     icon: const Icon(Icons.gavel, size: 16),
-                    label: const Text('Cưỡng chế'),
-                    onPressed: () => _showOverrideDialog(context, match),
+                    label: const Text('Sửa kết quả'),
+                    onPressed: () => _showOverrideDialog(
+                      context,
+                      match,
+                      adminNotifier,
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: 180,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isBettingLocked
+                          ? const Color(0xFF28DFB5)
+                          : const Color(0xFFFC536D),
+                      foregroundColor: isBettingLocked
+                          ? Colors.black
+                          : Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    icon: Icon(
+                      isBettingLocked
+                          ? Icons.lock_open
+                          : Icons.lock,
+                      size: 16,
+                    ),
+                    label: Text(
+                      isBettingLocked
+                          ? 'Mở cược'
+                          : 'Khóa cược',
+                    ),
+                    onPressed: () {
+                      adminNotifier.updateMatchBettingLock(
+                        matchId: match.id,
+                        isLocked: !isBettingLocked,
+                      );
+                    },
                   ),
                 ),
               ],
@@ -1437,7 +1529,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   // Edit Odds Dialog
-  void _showEditOddsDialog(BuildContext context, MatchModel match) {
+  void _showEditOddsDialog(
+      BuildContext context,
+      MatchModel match,
+      AdminNotifier adminNotifier,
+      ) {
     _oddsOverController.text = match.oddsOver.toString();
     _oddsUnderController.text = match.oddsUnder.toString();
     _lineController.text = match.overUnderLine.toString();
@@ -1492,12 +1588,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               final over = double.tryParse(_oddsOverController.text) ?? match.oddsOver;
               final under = double.tryParse(_oddsUnderController.text) ?? match.oddsUnder;
 
-              ref.read(matchProvider.notifier).adminUpdateOdds(
-                    matchId: match.id,
-                    oddsOver: over,
-                    oddsUnder: under,
-                    overUnderLine: line,
-                  );
+              adminNotifier.updateMatchOdds(
+                matchId: match.id,
+                overOdds: over,
+                underOdds: under,
+                line: line,
+              );
               Navigator.pop(context);
             },
           ),
@@ -1507,7 +1603,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   // Result Override Dialog
-  void _showOverrideDialog(BuildContext context, MatchModel match) {
+  void _showOverrideDialog(
+      BuildContext context,
+      MatchModel match,
+      AdminNotifier adminNotifier,
+      ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1524,7 +1624,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFC536D), foregroundColor: Colors.white),
                 onPressed: () {
-                  ref.read(matchProvider.notifier).adminOverrideResult(match.id, MatchResult.over);
+                  adminNotifier.forceMatchResult(
+                    matchId: match.id,
+                    result: 'over',
+                  );
                   Navigator.pop(context);
                 },
                 child: const Text('TÀI (OVER)'),
@@ -1532,7 +1635,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFB95A), foregroundColor: Colors.black),
                 onPressed: () {
-                  ref.read(matchProvider.notifier).adminOverrideResult(match.id, MatchResult.push);
+                  adminNotifier.forceMatchResult(
+                    matchId: match.id,
+                    result: 'draw',
+                  );
                   Navigator.pop(context);
                 },
                 child: const Text('HÒA (PUSH)'),
@@ -1540,7 +1646,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF28DFB5), foregroundColor: Colors.black),
                 onPressed: () {
-                  ref.read(matchProvider.notifier).adminOverrideResult(match.id, MatchResult.under);
+                  adminNotifier.forceMatchResult(
+                    matchId: match.id,
+                    result: 'under',
+                  );
                   Navigator.pop(context);
                 },
                 child: const Text('XỈU (UNDER)'),
@@ -1771,4 +1880,21 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       ],
     );
   }
+}
+void _showAdminSettingsDialog(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text("Admin Settings"),
+        content: const Text("Cài đặt hệ thống"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Đóng"),
+          ),
+        ],
+      );
+    },
+  );
 }
