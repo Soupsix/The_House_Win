@@ -9,7 +9,8 @@ class FirestoreService {
     await createWalletDocument(user.uid);
   }
 
-  Future<void> updateUserProfile(String uid, String displayName, String phoneNumber) async {
+  Future<void> updateUserProfile(
+      String uid, String displayName, String phoneNumber) async {
     await _firestore.collection('users').doc(uid).update({
       'displayName': displayName,
       'phoneNumber': phoneNumber,
@@ -42,12 +43,14 @@ class FirestoreService {
   // --- Wallet Operations ---
 
   // Lấy Stream realtime của Ví ảo
-  Stream<DocumentSnapshot<Map<String, dynamic>>> watchWalletDocument(String uid) {
+  Stream<DocumentSnapshot<Map<String, dynamic>>> watchWalletDocument(
+      String uid) {
     return _firestore.collection('wallets').doc(uid).snapshots();
   }
 
   // Lấy dữ liệu ví hiện tại
-  Future<DocumentSnapshot<Map<String, dynamic>>> getWalletDocument(String uid) async {
+  Future<DocumentSnapshot<Map<String, dynamic>>> getWalletDocument(
+      String uid) async {
     return await _firestore.collection('wallets').doc(uid).get();
   }
 
@@ -111,7 +114,8 @@ class FirestoreService {
       final balance = (data['balance'] as num?)?.toDouble() ?? 0.0;
       final lockedAmount = (data['lockedAmount'] as num?)?.toDouble() ?? 0.0;
 
-      final nextLockedAmount = (lockedAmount - amount < 0) ? 0.0 : lockedAmount - amount;
+      final nextLockedAmount =
+          (lockedAmount - amount < 0) ? 0.0 : lockedAmount - amount;
       final nextBalance = isWin ? (balance + payout) : balance;
 
       transaction.update(walletRef, {
@@ -198,10 +202,11 @@ class FirestoreService {
     });
 
     // Xóa lịch sử giao dịch
-    final transSnap = await _firestore.collection('transactions')
+    final transSnap = await _firestore
+        .collection('transactions')
         .where('userId', isEqualTo: uid)
         .get();
-    
+
     final batch = _firestore.batch();
     for (var doc in transSnap.docs) {
       batch.delete(doc.reference);
@@ -210,8 +215,10 @@ class FirestoreService {
   }
 
   // Đọc 20 giao dịch ví gần nhất từ collection transactions
-  Future<QuerySnapshot<Map<String, dynamic>>> getTransactionsLimit20(String uid) async {
-    return await _firestore.collection('transactions')
+  Future<QuerySnapshot<Map<String, dynamic>>> getTransactionsLimit20(
+      String uid) async {
+    return await _firestore
+        .collection('transactions')
         .where('userId', isEqualTo: uid)
         .orderBy('createdAt', descending: true)
         .limit(20)
@@ -229,20 +236,23 @@ class FirestoreService {
   }
 
   // Lưu trận đấu (thật hoặc giả lập) vào Firestore
-  Future<void> saveMatchInFirestore(String matchId, Map<String, dynamic> data) async {
+  Future<void> saveMatchInFirestore(
+      String matchId, Map<String, dynamic> data) async {
     await _firestore.collection('matches').doc(matchId).set(data);
   }
 
   // --- Bets Operations ---
 
   // Lưu cược vào Firestore
-  Future<void> saveBetInFirestore(String betId, Map<String, dynamic> data) async {
+  Future<void> saveBetInFirestore(
+      String betId, Map<String, dynamic> data) async {
     await _firestore.collection('bets').doc(betId).set(data);
   }
 
   // Lọc danh sách cược pending của người chơi
   Future<QuerySnapshot<Map<String, dynamic>>> getPendingBets(String uid) async {
-    return await _firestore.collection('bets')
+    return await _firestore
+        .collection('bets')
         .where('userId', isEqualTo: uid)
         .where('status', isEqualTo: 'pending')
         .orderBy('createdAt', descending: true)
@@ -250,25 +260,31 @@ class FirestoreService {
   }
 
   // Lọc danh sách cược đã giải quyết (settled) của người chơi
-  Future<QuerySnapshot<Map<String, dynamic>>> getSettledBetsLimit50(String uid) async {
-    return await _firestore.collection('bets')
+  Future<QuerySnapshot<Map<String, dynamic>>> getSettledBetsLimit50(
+      String uid) async {
+    return await _firestore
+        .collection('bets')
         .where('userId', isEqualTo: uid)
         .where('status', isNotEqualTo: 'pending')
-        .orderBy('status') // Firestore requires this if using order by on createdAt with inequality filter, or we can just filter in memory or order by createdAt if index exists. Wait, standard firestore query: where userId = uid and status != pending order by status, createdAt desc. Or we order by createdAt desc in memory. Let's do simple query.
+        .orderBy(
+            'status') // Firestore requires this if using order by on createdAt with inequality filter, or we can just filter in memory or order by createdAt if index exists. Wait, standard firestore query: where userId = uid and status != pending order by status, createdAt desc. Or we order by createdAt desc in memory. Let's do simple query.
         .limit(50)
         .get();
   }
 
   // Lấy các đơn cược pending của một trận đấu
-  Future<QuerySnapshot<Map<String, dynamic>>> getPendingBetsForMatch(String matchId) async {
-    return await _firestore.collection('bets')
+  Future<QuerySnapshot<Map<String, dynamic>>> getPendingBetsForMatch(
+      String matchId) async {
+    return await _firestore
+        .collection('bets')
         .where('matchId', isEqualTo: matchId)
         .where('status', isEqualTo: 'pending')
         .get();
   }
 
   // Cập nhật trạng thái cược
-  Future<void> updateBetStatus(String betId, String statusName, double payout, DateTime settledAt) async {
+  Future<void> updateBetStatus(String betId, String statusName, double payout,
+      DateTime settledAt) async {
     await _firestore.collection('bets').doc(betId).update({
       'status': statusName,
       'payout': payout,
@@ -277,19 +293,22 @@ class FirestoreService {
   }
 
   // Đọc thông tin trận đấu
-  Future<DocumentSnapshot<Map<String, dynamic>>> getMatchDocument(String matchId) async {
+  Future<DocumentSnapshot<Map<String, dynamic>>> getMatchDocument(
+      String matchId) async {
     return await _firestore.collection('matches').doc(matchId).get();
   }
 
   // Đọc thông tin cược
-  Future<DocumentSnapshot<Map<String, dynamic>>> getBetDocument(String betId) async {
+  Future<DocumentSnapshot<Map<String, dynamic>>> getBetDocument(
+      String betId) async {
     return await _firestore.collection('bets').doc(betId).get();
   }
 
   // --- Admin Logs ---
 
   // Ghi log hành động admin vào Firestore collection admin_logs
-  Future<void> writeAdminLog(String action, Map<String, dynamic> details) async {
+  Future<void> writeAdminLog(
+      String action, Map<String, dynamic> details) async {
     await _firestore.collection('admin_logs').add({
       'action': action,
       'details': details,
@@ -334,21 +353,30 @@ class FirestoreService {
   Stream<List<Map<String, dynamic>>> watchWithdrawalRequests() {
     return _firestore
         .collection('withdrawal_requests')
-        .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
+      final requests = snapshot.docs.map((doc) {
         final data = doc.data();
+
         return {
           'id': doc.id,
-          'userId': data['userId'] ?? '',
-          'displayName': data['displayName'] ?? '',
+          'userId': data['userId']?.toString() ?? '',
+          'displayName': data['displayName']?.toString() ?? '',
           'amount': (data['amount'] as num?)?.toDouble() ?? 0.0,
-          'method': data['method'] ?? 'Bank Transfer',
-          'status': data['status'] ?? 'pending',
-          'createdAt': (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          'method': data['method']?.toString() ?? 'Bank Transfer',
+          'status': data['status']?.toString() ?? 'pending',
+          'createdAt': (data['createdAt'] as Timestamp?)?.toDate() ??
+              DateTime.fromMillisecondsSinceEpoch(0),
         };
       }).toList();
+
+      requests.sort((a, b) {
+        final first = a['createdAt'] as DateTime;
+        final second = b['createdAt'] as DateTime;
+        return second.compareTo(first);
+      });
+
+      return requests;
     });
   }
 
@@ -366,7 +394,8 @@ class FirestoreService {
           'id': doc.id,
           'action': data['action'] ?? '',
           'details': data['details'] as Map<String, dynamic>? ?? {},
-          'timestamp': (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          'timestamp':
+              (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
         };
       }).toList();
     });
@@ -379,7 +408,8 @@ class FirestoreService {
     required double amount,
   }) async {
     final walletRef = _firestore.collection('wallets').doc(uid);
-    final requestRef = _firestore.collection('withdrawal_requests').doc(requestId);
+    final requestRef =
+        _firestore.collection('withdrawal_requests').doc(requestId);
     final transactionRef = _firestore.collection('transactions').doc();
 
     await _firestore.runTransaction((transaction) async {
@@ -425,7 +455,8 @@ class FirestoreService {
   }
 
   // Seed dữ liệu yêu cầu rút tiền mẫu để kiểm thử
-  Future<void> seedMockWithdrawalRequests(String uid, String displayName) async {
+  Future<void> seedMockWithdrawalRequests(
+      String uid, String displayName) async {
     final List<Map<String, dynamic>> mocks = [
       {
         'userId': uid,
@@ -450,4 +481,3 @@ class FirestoreService {
     }
   }
 }
-
