@@ -641,7 +641,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 ListView.separated(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  itemCount: adminState.withdrawalRequests.length > 3 ? 3 : adminState.withdrawalRequests.length,
+                  itemCount: adminState.withdrawalRequests.length,
                   separatorBuilder: (context, index) => const Divider(color: Color(0xFF333535), height: 16),
                   itemBuilder: (context, index) {
                     final req = adminState.withdrawalRequests[index];
