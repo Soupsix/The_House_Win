@@ -3,6 +3,7 @@ import '../models/user_model.dart';
 abstract class IAdminRepository {
   // 11.2 - Danh sách người chơi
   Stream<List<UserModel>> watchAllUsers();
+  Stream<List<Map<String, dynamic>>> watchAdminMatches();
 
   Stream<List<Map<String, dynamic>>> watchAllWallets();
 
@@ -27,14 +28,14 @@ abstract class IAdminRepository {
   });
 
   Future<void> toggleUserAdminStatus(
-      String uid,
-      bool isAdmin,
-      );
+    String uid,
+    bool isAdmin,
+  );
 
   Future<void> seedMockRequests(
-      String uid,
-      String displayName,
-      );
+    String uid,
+    String displayName,
+  );
 
   // 11.3, 11.4, 11.6 - Quản lý trận và cược
   Stream<List<Map<String, dynamic>>> watchAllMatches();
@@ -61,8 +62,8 @@ abstract class IAdminRepository {
 
   // 11.8, 11.9 - Cấu hình Admin
   Stream<Map<String, dynamic>> watchAdminSettings(
-      String adminId,
-      );
+    String adminId,
+  );
 
   Future<void> updateAntiGamblingSettings({
     required String adminId,

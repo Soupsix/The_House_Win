@@ -27,7 +27,7 @@ class AdminNotifier extends StateNotifier<AdminState> {
     );
 
     _usersSub = _adminRepository.watchAllUsers().listen(
-          (usersList) {
+      (usersList) {
         state = state.copyWith(
           users: usersList,
           isLoading: false,
@@ -41,16 +41,14 @@ class AdminNotifier extends StateNotifier<AdminState> {
     );
 
     _walletsSub = _adminRepository.watchAllWallets().listen(
-          (walletsList) {
+      (walletsList) {
         final balances = <String, double>{};
 
         for (final wallet in walletsList) {
           final userId = wallet['userId']?.toString() ?? '';
 
           final rawBalance = wallet['balance'];
-          final balance = rawBalance is num
-              ? rawBalance.toDouble()
-              : 0.0;
+          final balance = rawBalance is num ? rawBalance.toDouble() : 0.0;
 
           if (userId.isNotEmpty) {
             balances[userId] = balance;
@@ -68,22 +66,21 @@ class AdminNotifier extends StateNotifier<AdminState> {
       },
     );
 
-    _requestsSub =
-        _adminRepository.watchWithdrawalRequests().listen(
-              (requests) {
-            state = state.copyWith(
-              withdrawalRequests: requests,
-            );
-          },
-          onError: (Object error) {
-            _setError(
-              'Lỗi tải yêu cầu rút tiền: $error',
-            );
-          },
+    _requestsSub = _adminRepository.watchWithdrawalRequests().listen(
+      (requests) {
+        state = state.copyWith(
+          withdrawalRequests: requests,
         );
+      },
+      onError: (Object error) {
+        _setError(
+          'Lỗi tải yêu cầu rút tiền: $error',
+        );
+      },
+    );
 
     _logsSub = _adminRepository.watchAdminLogs().listen(
-          (logs) {
+      (logs) {
         state = state.copyWith(
           adminLogs: logs,
         );
@@ -94,9 +91,23 @@ class AdminNotifier extends StateNotifier<AdminState> {
         );
       },
     );
+    _matchesSub = _adminRepository.watchAdminMatches().listen(
+      (matches) {
+        state = state.copyWith(
+          matches: matches,
+          isLoading: false,
+        );
+      },
+      onError: (error) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: 'Lỗi tải danh sách trận đấu: $error',
+        );
+      },
+    );
 
     _matchesSub = _adminRepository.watchAllMatches().listen(
-          (matches) {
+      (matches) {
         state = state.copyWith(
           matches: matches,
         );
@@ -109,10 +120,8 @@ class AdminNotifier extends StateNotifier<AdminState> {
     );
 
     if (adminId != null && adminId.trim().isNotEmpty) {
-      _settingsSub = _adminRepository
-          .watchAdminSettings(adminId)
-          .listen(
-            (settings) {
+      _settingsSub = _adminRepository.watchAdminSettings(adminId).listen(
+        (settings) {
           state = state.copyWith(
             adminSettings: settings,
           );
@@ -140,53 +149,47 @@ class AdminNotifier extends StateNotifier<AdminState> {
   }
 
   Future<void> approveWithdrawal(
-      String requestId,
-      String userId,
-      double amount,
-      ) async {
+    String requestId,
+    String userId,
+    double amount,
+  ) async {
     await _runAction(
       action: () => _adminRepository.approveWithdrawal(
         requestId: requestId,
         uid: userId,
         amount: amount,
       ),
-      successMessage:
-      'Duyệt yêu cầu rút tiền thành công!',
+      successMessage: 'Duyệt yêu cầu rút tiền thành công!',
       errorPrefix: 'Duyệt yêu cầu thất bại',
     );
   }
 
   Future<void> rejectWithdrawal(
-      String requestId,
-      ) async {
+    String requestId,
+  ) async {
     await _runAction(
       action: () => _adminRepository.rejectWithdrawal(
         requestId: requestId,
       ),
-      successMessage:
-      'Đã từ chối yêu cầu rút tiền!',
-      errorPrefix:
-      'Từ chối yêu cầu thất bại',
+      successMessage: 'Đã từ chối yêu cầu rút tiền!',
+      errorPrefix: 'Từ chối yêu cầu thất bại',
     );
   }
 
   Future<void> resetUserWallet(
-      String userId,
-      ) async {
+    String userId,
+  ) async {
     await _runAction(
-      action: () =>
-          _adminRepository.resetUserWallet(userId),
-      successMessage:
-      'Khôi phục số dư ví thành công!',
-      errorPrefix:
-      'Khôi phục số dư thất bại',
+      action: () => _adminRepository.resetUserWallet(userId),
+      successMessage: 'Khôi phục số dư ví thành công!',
+      errorPrefix: 'Khôi phục số dư thất bại',
     );
   }
 
   Future<void> adminEditBalance(
-      String userId,
-      double newBalance,
-      ) async {
+    String userId,
+    double newBalance,
+  ) async {
     if (newBalance < 0) {
       _setError(
         'Số dư không được nhỏ hơn 0.',
@@ -195,50 +198,41 @@ class AdminNotifier extends StateNotifier<AdminState> {
     }
 
     await _runAction(
-      action: () =>
-          _adminRepository.adminEditBalance(
-            uid: userId,
-            newBalance: newBalance,
-          ),
-      successMessage:
-      'Chỉnh sửa số dư ví thành công!',
-      errorPrefix:
-      'Chỉnh sửa số dư thất bại',
+      action: () => _adminRepository.adminEditBalance(
+        uid: userId,
+        newBalance: newBalance,
+      ),
+      successMessage: 'Chỉnh sửa số dư ví thành công!',
+      errorPrefix: 'Chỉnh sửa số dư thất bại',
     );
   }
 
   Future<void> toggleAdminStatus(
-      String userId,
-      bool isAdmin,
-      ) async {
+    String userId,
+    bool isAdmin,
+  ) async {
     await _runAction(
-      action: () =>
-          _adminRepository.toggleUserAdminStatus(
-            userId,
-            isAdmin,
-          ),
-      successMessage: isAdmin
-          ? 'Đã cấp quyền Admin!'
-          : 'Đã thu hồi quyền Admin!',
-      errorPrefix:
-      'Cập nhật quyền thất bại',
+      action: () => _adminRepository.toggleUserAdminStatus(
+        userId,
+        isAdmin,
+      ),
+      successMessage:
+          isAdmin ? 'Đã cấp quyền Admin!' : 'Đã thu hồi quyền Admin!',
+      errorPrefix: 'Cập nhật quyền thất bại',
     );
   }
 
   Future<void> seedMockRequests(
-      String userId,
-      String displayName,
-      ) async {
+    String userId,
+    String displayName,
+  ) async {
     await _runAction(
-      action: () =>
-          _adminRepository.seedMockRequests(
-            userId,
-            displayName,
-          ),
-      successMessage:
-      'Đã tạo yêu cầu rút tiền mẫu!',
-      errorPrefix:
-      'Tạo dữ liệu mẫu thất bại',
+      action: () => _adminRepository.seedMockRequests(
+        userId,
+        displayName,
+      ),
+      successMessage: 'Đã tạo yêu cầu rút tiền mẫu!',
+      errorPrefix: 'Tạo dữ liệu mẫu thất bại',
     );
   }
 
@@ -249,9 +243,7 @@ class AdminNotifier extends StateNotifier<AdminState> {
     required double underOdds,
     required double line,
   }) async {
-    if (overOdds <= 0 ||
-        underOdds <= 0 ||
-        line < 0) {
+    if (overOdds <= 0 || underOdds <= 0 || line < 0) {
       _setError(
         'Tỷ lệ kèo phải lớn hơn 0 và mốc kèo không được âm.',
       );
@@ -259,17 +251,14 @@ class AdminNotifier extends StateNotifier<AdminState> {
     }
 
     await _runAction(
-      action: () =>
-          _adminRepository.updateMatchOdds(
-            matchId: matchId,
-            overOdds: overOdds,
-            underOdds: underOdds,
-            line: line,
-          ),
-      successMessage:
-      'Cập nhật tỷ lệ kèo thành công!',
-      errorPrefix:
-      'Cập nhật tỷ lệ kèo thất bại',
+      action: () => _adminRepository.updateMatchOdds(
+        matchId: matchId,
+        overOdds: overOdds,
+        underOdds: underOdds,
+        line: line,
+      ),
+      successMessage: 'Cập nhật tỷ lệ kèo thành công!',
+      errorPrefix: 'Cập nhật tỷ lệ kèo thất bại',
     );
   }
 
@@ -284,8 +273,7 @@ class AdminNotifier extends StateNotifier<AdminState> {
       'draw',
     };
 
-    final normalizedResult =
-    result.trim().toLowerCase();
+    final normalizedResult = result.trim().toLowerCase();
 
     if (!validResults.contains(normalizedResult)) {
       _setError(
@@ -295,15 +283,12 @@ class AdminNotifier extends StateNotifier<AdminState> {
     }
 
     await _runAction(
-      action: () =>
-          _adminRepository.forceMatchResult(
-            matchId: matchId,
-            result: normalizedResult,
-          ),
-      successMessage:
-      'Cập nhật kết quả trận đấu thành công!',
-      errorPrefix:
-      'Cập nhật kết quả thất bại',
+      action: () => _adminRepository.forceMatchResult(
+        matchId: matchId,
+        result: normalizedResult,
+      ),
+      successMessage: 'Cập nhật kết quả trận đấu thành công!',
+      errorPrefix: 'Cập nhật kết quả thất bại',
     );
   }
 
@@ -313,16 +298,13 @@ class AdminNotifier extends StateNotifier<AdminState> {
     required bool isLocked,
   }) async {
     await _runAction(
-      action: () =>
-          _adminRepository.updateMatchBettingLock(
-            matchId: matchId,
-            isLocked: isLocked,
-          ),
-      successMessage: isLocked
-          ? 'Đã khóa cược trận đấu!'
-          : 'Đã mở cược trận đấu!',
-      errorPrefix:
-      'Cập nhật trạng thái cược thất bại',
+      action: () => _adminRepository.updateMatchBettingLock(
+        matchId: matchId,
+        isLocked: isLocked,
+      ),
+      successMessage:
+          isLocked ? 'Đã khóa cược trận đấu!' : 'Đã mở cược trận đấu!',
+      errorPrefix: 'Cập nhật trạng thái cược thất bại',
     );
   }
 
@@ -345,8 +327,7 @@ class AdminNotifier extends StateNotifier<AdminState> {
       return;
     }
 
-    if (criticalLossThreshold <
-        warningLossThreshold) {
+    if (criticalLossThreshold < warningLossThreshold) {
       _setError(
         'Ngưỡng nguy hiểm phải lớn hơn hoặc bằng ngưỡng cảnh báo.',
       );
@@ -355,27 +336,20 @@ class AdminNotifier extends StateNotifier<AdminState> {
 
     final settings = <String, dynamic>{
       'enabled': enabled,
-      'warningLossThreshold':
-      warningLossThreshold,
-      'criticalLossThreshold':
-      criticalLossThreshold,
-      'maximumBetsPerDay':
-      maximumBetsPerDay,
+      'warningLossThreshold': warningLossThreshold,
+      'criticalLossThreshold': criticalLossThreshold,
+      'maximumBetsPerDay': maximumBetsPerDay,
       'breakMinutes': breakMinutes,
-      'updatedAt':
-      DateTime.now().toIso8601String(),
+      'updatedAt': DateTime.now().toIso8601String(),
     };
 
     await _runAction(
-      action: () =>
-          _adminRepository.updateAntiGamblingSettings(
-            adminId: adminId,
-            settings: settings,
-          ),
-      successMessage:
-      'Lưu cấu hình anti-gambling thành công!',
-      errorPrefix:
-      'Lưu cấu hình anti-gambling thất bại',
+      action: () => _adminRepository.updateAntiGamblingSettings(
+        adminId: adminId,
+        settings: settings,
+      ),
+      successMessage: 'Lưu cấu hình anti-gambling thành công!',
+      errorPrefix: 'Lưu cấu hình anti-gambling thất bại',
     );
   }
 
@@ -406,20 +380,16 @@ class AdminNotifier extends StateNotifier<AdminState> {
       'title': title.trim(),
       'description': description.trim(),
       'videoUrl': videoUrl.trim(),
-      'updatedAt':
-      DateTime.now().toIso8601String(),
+      'updatedAt': DateTime.now().toIso8601String(),
     };
 
     await _runAction(
-      action: () =>
-          _adminRepository.updateEducationContent(
-            adminId: adminId,
-            content: content,
-          ),
-      successMessage:
-      'Lưu nội dung giáo dục thành công!',
-      errorPrefix:
-      'Lưu nội dung giáo dục thất bại',
+      action: () => _adminRepository.updateEducationContent(
+        adminId: adminId,
+        content: content,
+      ),
+      successMessage: 'Lưu nội dung giáo dục thành công!',
+      errorPrefix: 'Lưu nội dung giáo dục thất bại',
     );
   }
 
@@ -466,11 +436,13 @@ class AdminNotifier extends StateNotifier<AdminState> {
     _logsSub?.cancel();
     _matchesSub?.cancel();
     _settingsSub?.cancel();
+    _matchesSub?.cancel();
   }
 
   @override
   void dispose() {
     _cancelSubscriptions();
+    _matchesSub?.cancel();
     super.dispose();
   }
 }

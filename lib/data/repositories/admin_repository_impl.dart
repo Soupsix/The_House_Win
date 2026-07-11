@@ -15,6 +15,11 @@ class AdminRepositoryImpl implements IAdminRepository {
   }
 
   @override
+  Stream<List<Map<String, dynamic>>> watchAdminMatches() {
+    return _firestoreService.watchAdminMatches();
+  }
+
+  @override
   Stream<List<Map<String, dynamic>>> watchAllWallets() {
     return _firestoreService.watchAllWallets();
   }
@@ -37,9 +42,9 @@ class AdminRepositoryImpl implements IAdminRepository {
 
   @override
   Future<void> toggleUserAdminStatus(
-      String uid,
-      bool isAdmin,
-      ) async {
+    String uid,
+    bool isAdmin,
+  ) async {
     await _firestoreService.toggleUserAdminStatus(
       uid,
       isAdmin,
@@ -77,9 +82,9 @@ class AdminRepositoryImpl implements IAdminRepository {
 
   @override
   Future<void> seedMockRequests(
-      String uid,
-      String displayName,
-      ) async {
+    String uid,
+    String displayName,
+  ) async {
     await _firestoreService.seedMockWithdrawalRequests(
       uid,
       displayName,
@@ -141,8 +146,8 @@ class AdminRepositoryImpl implements IAdminRepository {
 
   @override
   Stream<Map<String, dynamic>> watchAdminSettings(
-      String adminId,
-      ) {
+    String adminId,
+  ) {
     return _firestoreService.watchAdminSettingsData(adminId);
   }
 
