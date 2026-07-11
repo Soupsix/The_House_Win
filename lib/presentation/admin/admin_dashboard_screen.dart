@@ -32,6 +32,158 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   final TextEditingController _homeController = TextEditingController();
   final TextEditingController _awayController = TextEditingController();
 
+  Future<void> _confirmApproveWithdrawal({
+    required AdminNotifier adminNotifier,
+    required String requestId,
+    required String userId,
+    required String displayName,
+    required double amount,
+    required double currentBalance,
+  }) async {
+    final hasEnoughBalance = currentBalance >= amount;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1E2020),
+          title: const Text(
+            'Xác nhận duyệt rút tiền',
+            style: TextStyle(
+              color: Color(0xFFE2E2E2),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Người chơi: $displayName',
+                style: const TextStyle(
+                  color: Color(0xFFE2E2E2),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Số dư hiện tại: ${_formatCurrency(currentBalance)}',
+                style: const TextStyle(
+                  color: Color(0xFF28DFB5),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Số tiền yêu cầu: ${_formatCurrency(amount)}',
+                style: const TextStyle(
+                  color: Color(0xFFFFB2B7),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                hasEnoughBalance
+                    ? 'Sau khi duyệt, số tiền này sẽ được trừ khỏi ví người chơi.'
+                    : 'Ví người chơi không đủ số dư để duyệt yêu cầu này.',
+                style: TextStyle(
+                  color: hasEnoughBalance
+                      ? const Color(0xFFE2BEBF)
+                      : const Color(0xFFFC536D),
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
+              },
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: hasEnoughBalance
+                  ? () {
+                      Navigator.pop(dialogContext, true);
+                    }
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF28DFB5),
+                foregroundColor: Colors.black,
+              ),
+              child: const Text('Duyệt rút tiền'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    await adminNotifier.approveWithdrawal(
+      requestId,
+      userId,
+      amount,
+    );
+  }
+
+  Future<void> _confirmRejectWithdrawal({
+    required AdminNotifier adminNotifier,
+    required String requestId,
+    required String displayName,
+    required double amount,
+  }) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1E2020),
+          title: const Text(
+            'Từ chối yêu cầu rút tiền?',
+            style: TextStyle(
+              color: Color(0xFFE2E2E2),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Text(
+            'Bạn có chắc muốn từ chối yêu cầu rút '
+            '${_formatCurrency(amount)} của $displayName không?',
+            style: const TextStyle(
+              color: Color(0xFFE2BEBF),
+              height: 1.5,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
+              },
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, true);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFC536D),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Từ chối'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    await adminNotifier.rejectWithdrawal(requestId);
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -641,10 +793,24 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     children: [
                       if (adminState.users.isNotEmpty)
                         TextButton.icon(
-                          onPressed: () {
+                          onPressed: () async {
                             final firstUser = adminState.users.first;
-                            adminNotifier.seedMockRequests(
-                                firstUser.uid, firstUser.displayName);
+                            try {
+                              await adminNotifier.seedMockRequests(
+                                firstUser.uid,
+                                firstUser.displayName,
+                              );
+                            } catch (error) {
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Không thể tạo dữ liệu mẫu: $error',
+                                  ),
+                                  backgroundColor: const Color(0xFFFC536D),
+                                ),
+                              );
+                            }
                           },
                           icon: const Icon(Icons.add, size: 14),
                           label: const Text('Seed Mock',
@@ -689,87 +855,149 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       const Divider(color: Color(0xFF333535), height: 16),
                   itemBuilder: (context, index) {
                     final req = adminState.withdrawalRequests[index];
-                    final requestId = req['id'];
-                    final userId = req['userId'];
-                    final displayName = req['displayName'];
-                    final amount = req['amount'];
-                    final method = req['method'];
 
-                    return Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 20,
-                              backgroundColor:
-                                  const Color(0xFFFFB2B7).withOpacity(0.1),
-                              child: Text(
-                                displayName.isNotEmpty
-                                    ? displayName[0].toUpperCase()
-                                    : 'U',
-                                style: const TextStyle(
-                                    color: Color(0xFFFFB2B7),
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14),
+                    final requestId = req['id']?.toString() ?? '';
+                    final userId = req['userId']?.toString() ?? '';
+
+                    final rawDisplayName =
+                        req['displayName']?.toString().trim() ?? '';
+
+                    final displayName =
+                        rawDisplayName.isEmpty ? 'Người dùng' : rawDisplayName;
+
+                    final amount = (req['amount'] as num?)?.toDouble() ?? 0.0;
+
+                    final method =
+                        req['method']?.toString() ?? 'Không xác định';
+
+                    final currentBalance =
+                        adminState.userBalances[userId] ?? 0.0;
+
+                    final hasEnoughBalance = currentBalance >= amount;
+
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 6,
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 20,
+                            backgroundColor:
+                                const Color(0xFFFFB2B7).withOpacity(0.1),
+                            child: Text(
+                              displayName.isNotEmpty
+                                  ? displayName[0].toUpperCase()
+                                  : 'U',
+                              style: const TextStyle(
+                                color: Color(0xFFFFB2B7),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Column(
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   displayName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFFE2E2E2),
-                                      fontSize: 14),
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFFE2E2E2),
+                                    fontSize: 14,
+                                  ),
                                 ),
-                                const SizedBox(height: 2),
+                                const SizedBox(height: 3),
                                 Text(
                                   method,
                                   style: const TextStyle(
-                                      fontSize: 12, color: Color(0xFFE2BEBF)),
+                                    fontSize: 12,
+                                    color: Color(0xFFE2BEBF),
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  'Số dư: ${_formatCurrency(currentBalance)}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: hasEnoughBalance
+                                        ? const Color(0xFF28DFB5)
+                                        : const Color(0xFFFC536D),
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  'Yêu cầu: ${_formatCurrency(amount)}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFFFFB2B7),
+                                  ),
                                 ),
                               ],
                             ),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            Text(
-                              _formatCurrency(amount),
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFFFFB2B7),
-                                  fontSize: 14),
-                            ),
-                            const SizedBox(width: 16),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFFC536D),
-                                foregroundColor: const Color(0xFF67001C),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 8),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8)),
-                                textStyle: const TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                          const SizedBox(width: 8),
+                          Column(
+                            children: [
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF28DFB5),
+                                  foregroundColor: Colors.black,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                onPressed: hasEnoughBalance
+                                    ? () {
+                                        _confirmApproveWithdrawal(
+                                          adminNotifier: adminNotifier,
+                                          requestId: requestId,
+                                          userId: userId,
+                                          displayName: displayName,
+                                          amount: amount,
+                                          currentBalance: currentBalance,
+                                        );
+                                      }
+                                    : null,
+                                child: const Text(
+                                  'Duyệt',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
                               ),
-                              onPressed: () => adminNotifier.approveWithdrawal(
-                                  requestId, userId, amount),
-                              child: const Text('Rút tiền'),
-                            ),
-                            const SizedBox(width: 8),
-                            IconButton(
-                              icon: const Icon(Icons.close,
-                                  color: Colors.grey, size: 20),
-                              onPressed: () =>
-                                  adminNotifier.rejectWithdrawal(requestId),
-                            ),
-                          ],
-                        ),
-                      ],
+                              const SizedBox(height: 5),
+                              TextButton(
+                                onPressed: () {
+                                  _confirmRejectWithdrawal(
+                                    adminNotifier: adminNotifier,
+                                    requestId: requestId,
+                                    displayName: displayName,
+                                    amount: amount,
+                                  );
+                                },
+                                child: const Text(
+                                  'Từ chối',
+                                  style: TextStyle(
+                                    color: Color(0xFFFC536D),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     );
                   },
                 ),
@@ -1102,9 +1330,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             final user = filteredUsers[index];
             final balance = adminState.userBalances[user.uid] ?? 0.0;
 
-            // Extra metrics safely from Firestore data
-            // Since freezed creates raw fields, let's use manual logic if needed.
-            // Currently UserModel has fields: uid, email, displayName, isAdmin, createdAt, phoneNumber.
             return Container(
               margin: const EdgeInsets.only(bottom: 16),
               child: _buildGlassCard(
@@ -1236,24 +1461,24 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           onPressed: () => _showEditBalanceDialog(
                               context, adminNotifier, user, balance),
                         ),
-                        if (!user.isAdmin) ...[
-                          const SizedBox(width: 12),
-                          // Toggle Admin privilege
-                          OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFFFFB95A),
-                              side: const BorderSide(color: Color(0xFFFFB95A)),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8)),
-                            ),
-                            icon: const Icon(Icons.admin_panel_settings,
-                                size: 16),
-                            label: const Text('Cấp Admin'),
-                            onPressed: () {
-                              adminNotifier.toggleAdminStatus(user.uid, true);
-                            },
+                        const SizedBox(width: 12),
+                        // Toggle Admin privilege
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFFFB95A),
+                            side: const BorderSide(color: Color(0xFFFFB95A)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
                           ),
-                        ],
+                          icon:
+                              const Icon(Icons.admin_panel_settings, size: 16),
+                          label: Text(
+                              user.isAdmin ? 'Thu hồi Admin' : 'Cấp Admin'),
+                          onPressed: () {
+                            adminNotifier.toggleAdminStatus(
+                                user.uid, !user.isAdmin);
+                          },
+                        ),
                       ],
                     ),
                   ],
@@ -1686,12 +1911,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFFFFB2B7),
-                      side: const BorderSide(
-                        color: Color(0xFFFFB2B7),
-                      ),
+                      side: const BorderSide(color: Color(0xFFFFB2B7)),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                     icon: const Icon(Icons.edit, size: 16),
                     label: const Text('Sửa kèo'),
@@ -1709,8 +1931,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       backgroundColor: const Color(0xFFFFB95A),
                       foregroundColor: Colors.black,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                     icon: const Icon(Icons.gavel, size: 16),
                     label: const Text('Sửa kết quả'),
@@ -1778,7 +1999,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           children: [
             TextField(
               controller: _lineController,
-              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               style: const TextStyle(color: Colors.white),
               decoration: const InputDecoration(
                 labelText: 'Mốc Tài Xỉu (ví dụ: 2.5)',
@@ -1787,7 +2009,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
             TextField(
               controller: _oddsOverController,
-              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               style: const TextStyle(color: Colors.white),
               decoration: const InputDecoration(
                 labelText: 'Odds Tài (ví dụ: 1.85)',
@@ -1796,7 +2019,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
             TextField(
               controller: _oddsUnderController,
-              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               style: const TextStyle(color: Colors.white),
               decoration: const InputDecoration(
                 labelText: 'Odds Xỉu (ví dụ: 1.95)',
@@ -2057,14 +2281,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               Color actionColor = const Color(0xFFFFB2B7);
               IconData icon = Icons.info_outline;
 
-              if (action == 'OVERRIDE_MATCH_RESULT') {
+              if (action == 'OVERRIDE_MATCH_RESULT' ||
+                  action == 'FORCE_RESULT') {
                 message =
                     'Ghi đè kết quả trận đấu ${details['matchId']} thành: ${details['result']}';
                 actionColor = const Color(0xFFFFB95A);
                 icon = Icons.gavel;
-              } else if (action == 'UPDATE_MATCH_ODDS') {
+              } else if (action == 'UPDATE_MATCH_ODDS' ||
+                  action == 'UPDATE_ODDS') {
                 message =
-                    'Chỉnh sửa tỷ lệ cược trận ${details['matchId']}: Tài/Xỉu mốc ${details['overUnderLine']} (Odds: ${details['oddsOver']} / ${details['oddsUnder']})';
+                    'Chỉnh sửa tỷ lệ cược trận ${details['matchId']}: Tài/Xỉu mốc ${details['overUnderLine'] ?? ''}';
                 actionColor = const Color(0xFFFFB2B7);
                 icon = Icons.edit_note;
               } else if (action == 'OVERRIDE_BET_STATUS') {
@@ -2217,7 +2443,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
                 side: BorderSide(
-                  color: const Color(0xFFFFB2B7).withValues(alpha: 0.18),
+                  color: const Color(0xFFFFB2B7).withOpacity(0.18),
                 ),
               ),
               titlePadding: const EdgeInsets.fromLTRB(
@@ -2244,7 +2470,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFB2B7).withValues(alpha: 0.12),
+                      color: const Color(0xFFFFB2B7).withOpacity(0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
@@ -2312,8 +2538,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           color: const Color(0xFF121414),
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color:
-                                const Color(0xFFA9898A).withValues(alpha: 0.15),
+                            color: const Color(0xFFA9898A).withOpacity(0.15),
                           ),
                         ),
                         child: SwitchListTile(
@@ -2321,7 +2546,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           value: antiEnabled,
                           activeThumbColor: const Color(0xFF28DFB5),
                           activeTrackColor:
-                              const Color(0xFF28DFB5).withValues(alpha: 0.35),
+                              const Color(0xFF28DFB5).withOpacity(0.35),
                           title: const Text(
                             'Bật hệ thống Anti-Gambling',
                             style: TextStyle(
@@ -2438,12 +2663,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(13),
                         decoration: BoxDecoration(
-                          color:
-                              const Color(0xFFFFB95A).withValues(alpha: 0.08),
+                          color: const Color(0xFFFFB95A).withOpacity(0.08),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color:
-                                const Color(0xFFFFB95A).withValues(alpha: 0.28),
+                            color: const Color(0xFFFFB95A).withOpacity(0.28),
                           ),
                         ),
                         child: const Row(
@@ -2472,7 +2695,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       ),
                       const SizedBox(height: 26),
                       Divider(
-                        color: const Color(0xFFA9898A).withValues(alpha: 0.18),
+                        color: const Color(0xFFA9898A).withOpacity(0.18),
                       ),
                       const SizedBox(height: 20),
                       _buildSettingsSectionHeader(
@@ -2492,8 +2715,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           color: const Color(0xFF121414),
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color:
-                                const Color(0xFFA9898A).withValues(alpha: 0.15),
+                            color: const Color(0xFFA9898A).withOpacity(0.15),
                           ),
                         ),
                         child: SwitchListTile(
@@ -2501,7 +2723,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           value: educationEnabled,
                           activeThumbColor: const Color(0xFF28DFB5),
                           activeTrackColor:
-                              const Color(0xFF28DFB5).withValues(alpha: 0.35),
+                              const Color(0xFF28DFB5).withOpacity(0.35),
                           title: const Text(
                             'Hiển thị nội dung giáo dục',
                             style: TextStyle(
@@ -2562,8 +2784,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           color: const Color(0xFF121414),
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color:
-                                const Color(0xFFA9898A).withValues(alpha: 0.15),
+                            color: const Color(0xFFA9898A).withOpacity(0.15),
                           ),
                         ),
                         child: Column(
@@ -2833,7 +3054,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                     'Đã lưu cấu hình Anti-Gambling '
                                     'và nội dung giáo dục.',
                                   ),
-                                  backgroundColor: Color(0xFF28DFB5),
+                                  backgroundColor: const Color(0xFF28DFB5),
                                 ),
                               );
                             },
@@ -2885,7 +3106,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
+            color: color.withOpacity(0.12),
             borderRadius: BorderRadius.circular(11),
           ),
           child: Icon(
@@ -2954,7 +3175,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           color: Color(0xFFE2BEBF),
         ),
         hintStyle: TextStyle(
-          color: const Color(0xFFE2BEBF).withValues(alpha: 0.45),
+          color: const Color(0xFFE2BEBF).withOpacity(0.45),
         ),
         suffixStyle: const TextStyle(
           color: Color(0xFFFFB95A),
@@ -2963,17 +3184,17 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         filled: true,
         fillColor: enabled
             ? const Color(0xFF121414)
-            : const Color(0xFF121414).withValues(alpha: 0.45),
+            : const Color(0xFF121414).withOpacity(0.45),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: const Color(0xFFA9898A).withValues(alpha: 0.2),
+            color: const Color(0xFFA9898A).withOpacity(0.2),
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: const Color(0xFFA9898A).withValues(alpha: 0.2),
+            color: const Color(0xFFA9898A).withOpacity(0.2),
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -2986,7 +3207,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: const Color(0xFFA9898A).withValues(alpha: 0.08),
+            color: const Color(0xFFA9898A).withOpacity(0.08),
           ),
         ),
       ),
@@ -3027,19 +3248,19 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           color: Color(0xFFE2BEBF),
         ),
         hintStyle: TextStyle(
-          color: const Color(0xFFE2BEBF).withValues(alpha: 0.45),
+          color: const Color(0xFFE2BEBF).withOpacity(0.45),
         ),
         filled: true,
         fillColor: enabled
             ? const Color(0xFF121414)
-            : const Color(0xFF121414).withValues(alpha: 0.45),
+            : const Color(0xFF121414).withOpacity(0.45),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: const Color(0xFFA9898A).withValues(alpha: 0.2),
+            color: const Color(0xFFA9898A).withOpacity(0.2),
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -3052,7 +3273,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: const Color(0xFFA9898A).withValues(alpha: 0.08),
+            color: const Color(0xFFA9898A).withOpacity(0.08),
           ),
         ),
       ),

@@ -1,15 +1,18 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'widgets/bottom_nav_bar.dart';
-import '../matches/matches_screen.dart';
-import '../history/history_screen.dart';
-import '../profile/profile_screen.dart';
+import '../../application/wallet/wallet_provider.dart';
+import '../../application/anti_gambling/anti_gambling_provider.dart';
 import '../../application/auth/auth_provider.dart';
-import '../../domain/enums/auth_status.dart';
 import '../../core/router/app_routes.dart';
+import '../../domain/enums/auth_status.dart';
+import '../anti_gambling/loan_trap_screen.dart';
+import '../history/history_screen.dart';
+import '../matches/matches_screen.dart';
+import '../profile/profile_screen.dart';
+import 'widgets/bottom_nav_bar.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -20,14 +23,27 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _selectedIndex = 0;
+  @override
+  void initState() {
+    super.initState();
+
+    Future.microtask(() {
+      final user = ref.read(currentUserProvider);
+
+      if (user != null) {
+        ref.read(walletProvider.notifier).watchWallet(user.uid);
+        ref.read(walletProvider.notifier).loadWallet(user.uid);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final authStatus = ref.watch(authStatusProvider);
     final isGuest = authStatus == AuthStatus.unauthenticated;
     final currentUser = ref.watch(currentUserProvider);
+    final showLoanTrap = ref.watch(showLoanTrapProvider);
 
-    // Safely listen to auth status changes to reset selected index on sign out
     ref.listen<AuthStatus>(authStatusProvider, (previous, next) {
       if (next == AuthStatus.unauthenticated && _selectedIndex > 1) {
         setState(() {
@@ -36,19 +52,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
     });
 
-    // Compute displayIndex locally to avoid mutating state during build
-    final displayIndex = (isGuest && _selectedIndex > 1) ? 0 : _selectedIndex;
+    final displayIndex =
+    (isGuest && _selectedIndex > 1) ? 0 : _selectedIndex;
 
     final List<Widget> screens = [
-      _buildHomeContent(isGuest, currentUser),
+      _buildHomeContent(
+        context,
+        isGuest,
+        currentUser,
+        showLoanTrap,
+      ),
       const MatchesScreen(),
       if (!isGuest) ...[
         const HistoryScreen(),
-        ProfileScreen(onBackToHome: () {
-          setState(() {
-            _selectedIndex = 0;
-          });
-        }),
+        ProfileScreen(
+          onBackToHome: () {
+            setState(() {
+              _selectedIndex = 0;
+            });
+          },
+        ),
       ],
     ];
 
@@ -56,47 +79,59 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       backgroundColor: const Color(0xFF1A1A2E),
       appBar: displayIndex == 0
           ? AppBar(
-              backgroundColor: const Color(0xFF1A1A2E),
-              elevation: 0,
-              title: const Row(
-                children: [
-                  Icon(Icons.home_work_outlined, color: Color(0xFFE94560)),
-                  SizedBox(width: 8),
-                  Text(
-                    'The House Wins',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFFF5F5F5),
-                    ),
-                  ),
-                ],
+        backgroundColor: const Color(0xFF1A1A2E),
+        elevation: 0,
+        title: const Row(
+          children: [
+            Icon(
+              Icons.home_work_outlined,
+              color: Color(0xFFE94560),
+            ),
+            SizedBox(width: 8),
+            Text(
+              'The House Wins',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.bold,
+                color: Color(0xFFF5F5F5),
               ),
-              actions: [
-                if (isGuest)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 16.0),
-                    child: Center(
-                      child: TextButton.icon(
-                        style: TextButton.styleFrom(
-                          foregroundColor: const Color(0xFFF5F5F5),
-                          backgroundColor: const Color(0xFFE94560),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
-                        icon: const Icon(Icons.login, size: 16),
-                        label: const Text(
-                          'Đăng nhập',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                        ),
-                        onPressed: () => context.go(AppRoutes.login),
-                      ),
+            ),
+          ],
+        ),
+        actions: [
+          if (isGuest)
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: Center(
+                child: TextButton.icon(
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFFF5F5F5),
+                    backgroundColor: const Color(0xFFE94560),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
                     ),
                   ),
-              ],
-            )
+                  icon: const Icon(
+                    Icons.login,
+                    size: 16,
+                  ),
+                  label: const Text(
+                    'Đăng nhập',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  onPressed: () => context.go(AppRoutes.login),
+                ),
+              ),
+            ),
+        ],
+      )
           : null,
       body: IndexedStack(
         index: displayIndex,
@@ -113,11 +148,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildHomeContent(bool isGuest, dynamic currentUser) {
+  Widget _buildHomeContent(
+      BuildContext context,
+      bool isGuest,
+      dynamic currentUser,
+      bool showLoanTrap,
+      ) {
     if (isGuest) {
       return Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -141,9 +181,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 decoration: BoxDecoration(
                   color: const Color(0xFF16213E),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF0F3460)),
+                  border: Border.all(
+                    color: const Color(0xFF0F3460),
+                  ),
                 ),
-                padding: const EdgeInsets.all(20.0),
+                padding: const EdgeInsets.all(20),
                 child: const Column(
                   children: [
                     Text(
@@ -189,7 +231,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -215,9 +257,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               decoration: BoxDecoration(
                 color: const Color(0xFF16213E),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF0F3460)),
+                border: Border.all(
+                  color: const Color(0xFF0F3460),
+                ),
               ),
-              padding: const EdgeInsets.all(20.0),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
                   const Text(
@@ -229,16 +273,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  StreamBuilder<DocumentSnapshot>(
+                  StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                     stream: FirebaseFirestore.instance
                         .collection('wallets')
                         .doc(uid)
                         .snapshots(),
                     builder: (context, snapshot) {
                       if (snapshot.hasData && snapshot.data!.exists) {
-                        final data = snapshot.data!.data() as Map<String, dynamic>?;
-                        final balance = data?['balance'] ?? 0;
-                        final formatter = NumberFormat.currency(locale: 'vi_VN', symbol: 'VNĐ');
+                        final data = snapshot.data!.data();
+                        final balance =
+                            (data?['balance'] as num?)?.toDouble() ?? 0;
+
+                        final formatter = NumberFormat.currency(
+                          locale: 'vi_VN',
+                          symbol: 'VNĐ',
+                          decimalDigits: 0,
+                        );
+
                         return Text(
                           formatter.format(balance),
                           style: const TextStyle(
@@ -249,6 +300,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         );
                       }
+
+                      if (snapshot.hasError) {
+                        return const Text(
+                          'Không thể tải số dư',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFE94560),
+                          ),
+                        );
+                      }
+
                       return const Text(
                         '0 VNĐ',
                         style: TextStyle(
@@ -263,6 +327,84 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ],
               ),
             ),
+            if (showLoanTrap) ...[
+              const SizedBox(height: 24),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3A1625),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: const Color(0xFFE94560),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      size: 40,
+                      color: Color(0xFFE94560),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Số dư của bạn đang ở mức rất thấp',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFF5F5F5),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Bạn có muốn sử dụng gói vay vốn mô phỏng để tiếp tục chơi không?',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'Be Vietnam Pro',
+                        fontSize: 14,
+                        color: Color(0xFFA0A0B0),
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        icon: const Icon(
+                          Icons.account_balance_wallet_outlined,
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFE94560),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 16,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        label: const Text(
+                          'VAY THÊM TIỀN',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 17,
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const LoanTrapScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             const Text(
               'Chúc bạn trải nghiệm vui vẻ! Học cách không thua để luôn thắng.',

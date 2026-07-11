@@ -385,22 +385,30 @@ class FirestoreService {
   Stream<List<Map<String, dynamic>>> watchWithdrawalRequests() {
     return _firestore
         .collection('withdrawal_requests')
-        .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
+      final requests = snapshot.docs.map((doc) {
         final data = doc.data();
+
         return {
           'id': doc.id,
-          'userId': data['userId'] ?? '',
-          'displayName': data['displayName'] ?? '',
+          'userId': data['userId']?.toString() ?? '',
+          'displayName': data['displayName']?.toString() ?? '',
           'amount': (data['amount'] as num?)?.toDouble() ?? 0.0,
-          'method': data['method'] ?? 'Bank Transfer',
-          'status': data['status'] ?? 'pending',
+          'method': data['method']?.toString() ?? 'Bank Transfer',
+          'status': data['status']?.toString() ?? 'pending',
           'createdAt':
               (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
         };
       }).toList();
+
+      requests.sort((a, b) {
+        final first = a['createdAt'] as DateTime;
+        final second = b['createdAt'] as DateTime;
+        return second.compareTo(first);
+      });
+
+      return requests;
     });
   }
 

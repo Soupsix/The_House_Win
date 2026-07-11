@@ -27,6 +27,14 @@ class AdminRepositoryImpl implements IAdminRepository {
   @override
   Future<void> resetUserWallet(String uid) async {
     await _firestoreService.runResetWalletTransaction(uid);
+
+    await _firestoreService.writeAdminLog(
+      'RESET_USER_WALLET',
+      {
+        'userId': uid,
+        'newBalance': 1000000.0,
+      },
+    );
   }
 
   @override
@@ -38,6 +46,14 @@ class AdminRepositoryImpl implements IAdminRepository {
       uid: uid,
       newBalance: newBalance,
     );
+
+    await _firestoreService.writeAdminLog(
+      'ADMIN_EDIT_BALANCE',
+      {
+        'userId': uid,
+        'newBalance': newBalance,
+      },
+    );
   }
 
   @override
@@ -48,6 +64,14 @@ class AdminRepositoryImpl implements IAdminRepository {
     await _firestoreService.toggleUserAdminStatus(
       uid,
       isAdmin,
+    );
+
+    await _firestoreService.writeAdminLog(
+      isAdmin ? 'GRANT_ADMIN_ROLE' : 'REVOKE_ADMIN_ROLE',
+      {
+        'userId': uid,
+        'isAdmin': isAdmin,
+      },
     );
   }
 
@@ -69,6 +93,15 @@ class AdminRepositoryImpl implements IAdminRepository {
       uid: uid,
       amount: amount,
     );
+
+    await _firestoreService.writeAdminLog(
+      'APPROVE_WITHDRAWAL',
+      {
+        'requestId': requestId,
+        'userId': uid,
+        'amount': amount,
+      },
+    );
   }
 
   @override
@@ -77,6 +110,13 @@ class AdminRepositoryImpl implements IAdminRepository {
   }) async {
     await _firestoreService.rejectWithdrawRequest(
       requestId: requestId,
+    );
+
+    await _firestoreService.writeAdminLog(
+      'REJECT_WITHDRAWAL',
+      {
+        'requestId': requestId,
+      },
     );
   }
 
@@ -88,6 +128,14 @@ class AdminRepositoryImpl implements IAdminRepository {
     await _firestoreService.seedMockWithdrawalRequests(
       uid,
       displayName,
+    );
+
+    await _firestoreService.writeAdminLog(
+      'SEED_WITHDRAWAL_REQUESTS',
+      {
+        'userId': uid,
+        'displayName': displayName,
+      },
     );
   }
 
