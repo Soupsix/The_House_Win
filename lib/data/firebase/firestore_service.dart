@@ -18,7 +18,7 @@ class FirestoreService {
 
   Future<void> createWalletDocument(String uid) async {
     await _firestore.collection('wallets').doc(uid).set({
-      'balance': 1000000,
+      'balance': 300000,
       'lockedAmount': 0,
       'isBroke': false,
       'createdAt': FieldValue.serverTimestamp(),
@@ -184,7 +184,7 @@ class FirestoreService {
 
     await _firestore.runTransaction((transaction) async {
       transaction.update(walletRef, {
-        'balance': 1000000.0,
+        'balance': 300000.0,
         'lockedAmount': 0.0,
         'isBroke': false,
       });
@@ -192,7 +192,7 @@ class FirestoreService {
       transaction.set(transactionRef, {
         'userId': uid,
         'type': 'WALLET_RESET',
-        'amount': 1000000.0,
+        'amount': 300000.0,
         'createdAt': FieldValue.serverTimestamp(),
       });
     });

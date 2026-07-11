@@ -169,7 +169,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               const SizedBox(height: 24),
               const Text(
-                'Đăng nhập để nhận ngay 1.000.000 VNĐ ảo và tham gia mô phỏng cá cược không rủi ro!',
+                'Đăng nhập để nhận ngay 300.000 VNĐ ảo và tham gia mô phỏng cá cược không rủi ro!',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontFamily: 'Be Vietnam Pro',

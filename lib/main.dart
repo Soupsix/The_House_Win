@@ -6,19 +6,23 @@ import 'firebase_options.dart';
 import 'core/services/notification_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Load biến môi trường
+  await dotenv.load(fileName: ".env");
 
   // Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Timezone cho notification
+  // Timezone
   tz.initializeTimeZones();
 
-  // Notification service
+  // Notification
   await NotificationService.init();
 
   runApp(

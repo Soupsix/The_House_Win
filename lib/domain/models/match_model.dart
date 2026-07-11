@@ -76,6 +76,41 @@ class MatchModel with _$MatchModel {
       isSimulated: (map['is_simulated'] as int? ?? 0) == 1,
     );
   }
+  // Factory tạo MatchModel từ FootballData.io API
+  factory MatchModel.fromFootballDataApi(Map<String, dynamic> json) {
+    final score = json['score'] ?? {};
+    MatchStatus status;
+    switch ((json['status'] ?? '').toString().toLowerCase()) {
+      case 'finished':
+      case 'complete':
+        status = MatchStatus.finished;
+        break;
+      case 'live':
+      case 'playing':
+      case 'in_play':
+        status = MatchStatus.inPlay;
+        break;
+      default:
+        status = MatchStatus.scheduled;
+    }
+
+    return MatchModel(
+      id: json['match_id'].toString(),
+      homeTeam: json['home_team']['team_name'] ?? '',
+      awayTeam: json['away_team']['team_name'] ?? '',
+      utcDate: DateTime.parse(json['match_date']),
+      status: status,
+      scoreHome: score['home'] ?? 0,
+      scoreAway: score['away'] ?? 0,
+      result: null,
+
+      // API free không có Over/Under
+      oddsOver: 1.90,
+      oddsUnder: 1.90,
+      overUnderLine: 2.5,
+      isSimulated: false,
+    );
+  }
 }
 
 // Extension cung cấp helper để lưu trận đấu vào Firestore và SQLite
@@ -115,4 +150,5 @@ extension MatchModelStorageExtension on MatchModel {
       'synced_at': DateTime.now().millisecondsSinceEpoch,
     };
   }
+
 }
