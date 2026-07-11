@@ -27,7 +27,7 @@ class BetNotifier extends StateNotifier<BetState> implements IBetsSettler {
   // Khởi tạo cược nháp trong bộ nhớ tạm (chưa lưu Firestore)
   void draftBet(String matchId, BetChoice choice, double amount, double odds) {
     state = state.copyWith(errorMessage: null, successMessage: null);
-    
+
     if (amount <= 0) {
       state = state.copyWith(errorMessage: 'Số tiền đặt cược phải lớn hơn 0');
       return;
@@ -54,40 +54,114 @@ class BetNotifier extends StateNotifier<BetState> implements IBetsSettler {
   // Xác nhận đặt đơn cược nháp thành cược chính thức
   Future<void> confirmBet(String uid) async {
     final draft = state.currentDraft;
+
     if (draft == null) {
-      state = state.copyWith(errorMessage: 'Không có cược nháp nào để xác nhận');
+      state = state.copyWith(
+        errorMessage: 'Không có cược nháp nào để xác nhận',
+      );
       return;
     }
 
-    state = state.copyWith(isSubmitting: true, errorMessage: null, successMessage: null);
+    if (state.isSubmitting) {
+      return;
+    }
+
+    state = state.copyWith(
+      isSubmitting: true,
+      errorMessage: null,
+      successMessage: null,
+    );
+
     try {
+      // 1. Đọc trận đấu trước khi trừ tiền.
+      final matchDoc = await _firestoreService.getMatchDocument(
+        draft.matchId,
+      );
+
+      if (!matchDoc.exists || matchDoc.data() == null) {
+        throw Exception('Trận đấu không tồn tại');
+      }
+
+      final matchData = matchDoc.data()!;
+
+      final isBettingLocked = matchData['isBettingLocked'] as bool? ?? false;
+
+      final matchStatus = matchData['status']?.toString() ?? 'scheduled';
+
+      // 2. Chặn nếu Admin đã khóa cược.
+      if (isBettingLocked) {
+        state = state.copyWith(
+          isSubmitting: false,
+          errorMessage:
+              'Trận đấu đã bị Admin khóa cược. Bạn không thể đặt cược.',
+        );
+        return;
+      }
+
+      // 3. Chỉ cho cược trận chưa kết thúc.
+      if (matchStatus == 'finished') {
+        state = state.copyWith(
+          isSubmitting: false,
+          errorMessage: 'Trận đấu đã kết thúc. Không thể đặt cược.',
+        );
+        return;
+      }
+
+      // 4. Kiểm tra lại số dư ngay trước khi xác nhận.
+      final availableBalance = _walletNotifier.state.availableBalance;
+
+      if (draft.amount <= 0) {
+        state = state.copyWith(
+          isSubmitting: false,
+          errorMessage: 'Số tiền đặt cược phải lớn hơn 0.',
+        );
+        return;
+      }
+
+      if (draft.amount > availableBalance) {
+        state = state.copyWith(
+          isSubmitting: false,
+          errorMessage: 'Số dư khả dụng trong ví không đủ.',
+        );
+        return;
+      }
+
       final betId = 'bet_${DateTime.now().millisecondsSinceEpoch}_$uid';
 
-      // 1. Gọi WalletNotifier để trừ tiền và khóa tiền cược
-      await _walletNotifier.deductBet(uid, draft.amount, betId);
+      final homeTeam = matchData['homeTeam']?.toString() ?? '';
 
-      // 2. Đọc thông tin trận đấu để điền homeTeam, awayTeam
-      final matchDoc = await _firestoreService.getMatchDocument(draft.matchId);
-      if (!matchDoc.exists) {
-        throw Exception("Trận đấu không tồn tại");
+      final awayTeam = matchData['awayTeam']?.toString() ?? '';
+
+      // 5. Trừ và khóa tiền cược sau khi đã kiểm tra trận.
+      await _walletNotifier.deductBet(
+        uid,
+        draft.amount,
+        betId,
+      );
+
+      // WalletNotifier có thể lưu lỗi mà không throw exception.
+      final walletError = _walletNotifier.state.errorMessage;
+
+      if (walletError != null) {
+        throw Exception(walletError);
       }
-      final matchData = matchDoc.data()!;
-      final homeTeam = matchData['homeTeam'] as String? ?? '';
-      final awayTeam = matchData['awayTeam'] as String? ?? '';
 
-      // 3. Ghi bet document mới vào Firestore collection bets
-      await _firestoreService.saveBetInFirestore(betId, {
-        'userId': uid,
-        'matchId': draft.matchId,
-        'homeTeam': homeTeam,
-        'awayTeam': awayTeam,
-        'choice': draft.choice.name,
-        'amount': draft.amount,
-        'oddsAtTime': draft.oddsAtTime,
-        'payout': 0.0,
-        'status': BetStatus.pending.name,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      // 6. Lưu cược vào Firestore.
+      await _firestoreService.saveBetInFirestore(
+        betId,
+        {
+          'userId': uid,
+          'matchId': draft.matchId,
+          'homeTeam': homeTeam,
+          'awayTeam': awayTeam,
+          'choice': draft.choice.name,
+          'amount': draft.amount,
+          'oddsAtTime': draft.oddsAtTime,
+          'payout': 0.0,
+          'status': BetStatus.pending.name,
+          'createdAt': FieldValue.serverTimestamp(),
+        },
+      );
 
       state = state.copyWith(
         currentDraft: null,
@@ -95,7 +169,6 @@ class BetNotifier extends StateNotifier<BetState> implements IBetsSettler {
         successMessage: 'Đặt cược thành công!',
       );
 
-      // Tải lại danh sách cược
       await loadBets(uid);
     } catch (e) {
       state = state.copyWith(
@@ -107,7 +180,8 @@ class BetNotifier extends StateNotifier<BetState> implements IBetsSettler {
 
   // Hủy bỏ đơn cược nháp hiện tại
   void cancelDraft() {
-    state = state.copyWith(currentDraft: null, errorMessage: null, successMessage: null);
+    state = state.copyWith(
+        currentDraft: null, errorMessage: null, successMessage: null);
   }
 
   // Tải danh sách các cược pending và cược đã giải quyết của người dùng
@@ -117,8 +191,10 @@ class BetNotifier extends StateNotifier<BetState> implements IBetsSettler {
       final pendingSnap = await _firestoreService.getPendingBets(uid);
       final settledSnap = await _firestoreService.getSettledBetsLimit50(uid);
 
-      final pendingBets = pendingSnap.docs.map((doc) => BetModel.fromFirestore(doc)).toList();
-      final settledBets = settledSnap.docs.map((doc) => BetModel.fromFirestore(doc)).toList();
+      final pendingBets =
+          pendingSnap.docs.map((doc) => BetModel.fromFirestore(doc)).toList();
+      final settledBets =
+          settledSnap.docs.map((doc) => BetModel.fromFirestore(doc)).toList();
 
       state = state.copyWith(
         pendingBets: pendingBets,
@@ -138,8 +214,11 @@ class BetNotifier extends StateNotifier<BetState> implements IBetsSettler {
   Future<void> onMatchSettled(String matchId, MatchResult result) async {
     try {
       // Lấy toàn bộ cược đang chờ kết quả của trận đấu này từ Firestore
-      final pendingBetsSnap = await _firestoreService.getPendingBetsForMatch(matchId);
-      final pendingBetsList = pendingBetsSnap.docs.map((doc) => BetModel.fromFirestore(doc)).toList();
+      final pendingBetsSnap =
+          await _firestoreService.getPendingBetsForMatch(matchId);
+      final pendingBetsList = pendingBetsSnap.docs
+          .map((doc) => BetModel.fromFirestore(doc))
+          .toList();
 
       final settledAt = DateTime.now();
 
@@ -165,7 +244,8 @@ class BetNotifier extends StateNotifier<BetState> implements IBetsSettler {
           }
         }
 
-        final isWinOrPush = (status == BetStatus.won || status == BetStatus.push);
+        final isWinOrPush =
+            (status == BetStatus.won || status == BetStatus.push);
 
         // 1. Gọi WalletNotifier để thanh toán tiền thắng/hoàn cược
         await _walletNotifier.settleBet(
@@ -177,7 +257,8 @@ class BetNotifier extends StateNotifier<BetState> implements IBetsSettler {
         );
 
         // 2. Cập nhật trạng thái cược trong Firestore
-        await _firestoreService.updateBetStatus(bet.id, status.name, payout, settledAt);
+        await _firestoreService.updateBetStatus(
+            bet.id, status.name, payout, settledAt);
 
         // 3. Lưu cược đã thanh toán vào SQLite local
         final settledBet = bet.copyWith(
@@ -204,7 +285,8 @@ class BetNotifier extends StateNotifier<BetState> implements IBetsSettler {
 
   // Admin cưỡng chế thay đổi kết quả của một đơn đặt cược
   Future<void> adminOverrideBet(String betId, BetStatus newStatus) async {
-    state = state.copyWith(isLoading: true, errorMessage: null, successMessage: null);
+    state = state.copyWith(
+        isLoading: true, errorMessage: null, successMessage: null);
     try {
       // 1. Ghi log hành động của admin
       await _firestoreService.writeAdminLog('OVERRIDE_BET_STATUS', {
@@ -227,7 +309,8 @@ class BetNotifier extends StateNotifier<BetState> implements IBetsSettler {
       final awayTeam = betData['awayTeam'] as String? ?? '';
       final matchId = betData['matchId'] as String? ?? '';
       final choiceString = betData['choice'] as String? ?? 'over';
-      final choice = BetChoice.values.firstWhere((e) => e.name == choiceString, orElse: () => BetChoice.over);
+      final choice = BetChoice.values.firstWhere((e) => e.name == choiceString,
+          orElse: () => BetChoice.over);
 
       // Tính payout mới
       double payout = 0.0;
@@ -237,7 +320,8 @@ class BetNotifier extends StateNotifier<BetState> implements IBetsSettler {
         payout = amount;
       }
 
-      final isWinOrPush = (newStatus == BetStatus.won || newStatus == BetStatus.push);
+      final isWinOrPush =
+          (newStatus == BetStatus.won || newStatus == BetStatus.push);
 
       // 3. Cập nhật ví ảo dựa trên trạng thái cũ
       if (oldStatus == 'pending') {
@@ -261,7 +345,8 @@ class BetNotifier extends StateNotifier<BetState> implements IBetsSettler {
 
       // 4. Cập nhật Firestore status của cược
       final settledAt = DateTime.now();
-      await _firestoreService.updateBetStatus(betId, newStatus.name, payout, settledAt);
+      await _firestoreService.updateBetStatus(
+          betId, newStatus.name, payout, settledAt);
 
       // 5. Cập nhật SQLite
       final settledBet = BetModel(
@@ -275,7 +360,8 @@ class BetNotifier extends StateNotifier<BetState> implements IBetsSettler {
         oddsAtTime: oddsAtTime,
         payout: payout,
         status: newStatus,
-        createdAt: (betData['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        createdAt:
+            (betData['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
         settledAt: settledAt,
       );
 
