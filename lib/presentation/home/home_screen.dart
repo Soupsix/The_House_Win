@@ -66,7 +66,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
       const ArenasScreen(),
       if (!isGuest) ...[
-        const MyBetsScreen(),
         const WalletScreen(),
         ProfileScreen(
           onBackToHome: () {
@@ -441,9 +440,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               ),
                             ),
                             onPressed: () {
-                              setState(() {
-                                _selectedIndex = 2; // My Bets
-                              });
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const MyBetsScreen()),
+                              );
                             },
                             icon: const Icon(Icons.history, size: 18),
                             label: const Text('Lịch sử cược', style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
@@ -464,7 +464,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                             onPressed: () {
                               setState(() {
-                                _selectedIndex = 3; // Wallet
+                                _selectedIndex = 2; // Wallet (thay vì 3 vì đã xóa tab Lịch sử)
                               });
                             },
                             icon: const Icon(Icons.account_balance_wallet, size: 18),
