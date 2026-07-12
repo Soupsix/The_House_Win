@@ -38,6 +38,11 @@ final liveMatchesProvider = Provider<List<MatchModel>>(
   (ref) => ref.watch(matchProvider.select((s) => s.liveMatches)),
 );
 
+// Provider lấy danh sách các trận đấu đã kết thúc
+final finishedMatchesProvider = Provider<List<MatchModel>>(
+  (ref) => ref.watch(matchProvider.select((s) => s.finishedMatches)),
+);
+
 // Provider lấy trận đấu đang được chọn để xem chi tiết
 final selectedMatchProvider = Provider<MatchModel?>(
   (ref) => ref.watch(matchProvider.select((s) => s.selectedMatch)),

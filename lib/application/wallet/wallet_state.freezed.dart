@@ -22,6 +22,9 @@ mixin _$WalletState {
   bool get isLoading => throw _privateConstructorUsedError;
   List<TransactionModel> get transactionHistory =>
       throw _privateConstructorUsedError;
+  double get totalBet => throw _privateConstructorUsedError;
+  double get totalWon => throw _privateConstructorUsedError;
+  double get totalLost => throw _privateConstructorUsedError;
   String? get errorMessage => throw _privateConstructorUsedError;
 
   /// Create a copy of WalletState
@@ -43,6 +46,9 @@ abstract class $WalletStateCopyWith<$Res> {
       bool isBroke,
       bool isLoading,
       List<TransactionModel> transactionHistory,
+      double totalBet,
+      double totalWon,
+      double totalLost,
       String? errorMessage});
 }
 
@@ -66,6 +72,9 @@ class _$WalletStateCopyWithImpl<$Res, $Val extends WalletState>
     Object? isBroke = null,
     Object? isLoading = null,
     Object? transactionHistory = null,
+    Object? totalBet = null,
+    Object? totalWon = null,
+    Object? totalLost = null,
     Object? errorMessage = freezed,
   }) {
     return _then(_value.copyWith(
@@ -89,6 +98,18 @@ class _$WalletStateCopyWithImpl<$Res, $Val extends WalletState>
           ? _value.transactionHistory
           : transactionHistory // ignore: cast_nullable_to_non_nullable
               as List<TransactionModel>,
+      totalBet: null == totalBet
+          ? _value.totalBet
+          : totalBet // ignore: cast_nullable_to_non_nullable
+              as double,
+      totalWon: null == totalWon
+          ? _value.totalWon
+          : totalWon // ignore: cast_nullable_to_non_nullable
+              as double,
+      totalLost: null == totalLost
+          ? _value.totalLost
+          : totalLost // ignore: cast_nullable_to_non_nullable
+              as double,
       errorMessage: freezed == errorMessage
           ? _value.errorMessage
           : errorMessage // ignore: cast_nullable_to_non_nullable
@@ -111,6 +132,9 @@ abstract class _$$WalletStateImplCopyWith<$Res>
       bool isBroke,
       bool isLoading,
       List<TransactionModel> transactionHistory,
+      double totalBet,
+      double totalWon,
+      double totalLost,
       String? errorMessage});
 }
 
@@ -132,6 +156,9 @@ class __$$WalletStateImplCopyWithImpl<$Res>
     Object? isBroke = null,
     Object? isLoading = null,
     Object? transactionHistory = null,
+    Object? totalBet = null,
+    Object? totalWon = null,
+    Object? totalLost = null,
     Object? errorMessage = freezed,
   }) {
     return _then(_$WalletStateImpl(
@@ -155,6 +182,18 @@ class __$$WalletStateImplCopyWithImpl<$Res>
           ? _value._transactionHistory
           : transactionHistory // ignore: cast_nullable_to_non_nullable
               as List<TransactionModel>,
+      totalBet: null == totalBet
+          ? _value.totalBet
+          : totalBet // ignore: cast_nullable_to_non_nullable
+              as double,
+      totalWon: null == totalWon
+          ? _value.totalWon
+          : totalWon // ignore: cast_nullable_to_non_nullable
+              as double,
+      totalLost: null == totalLost
+          ? _value.totalLost
+          : totalLost // ignore: cast_nullable_to_non_nullable
+              as double,
       errorMessage: freezed == errorMessage
           ? _value.errorMessage
           : errorMessage // ignore: cast_nullable_to_non_nullable
@@ -172,6 +211,9 @@ class _$WalletStateImpl implements _WalletState {
       this.isBroke = false,
       this.isLoading = false,
       final List<TransactionModel> transactionHistory = const [],
+      this.totalBet = 0,
+      this.totalWon = 0,
+      this.totalLost = 0,
       this.errorMessage})
       : _transactionHistory = transactionHistory;
 
@@ -198,11 +240,20 @@ class _$WalletStateImpl implements _WalletState {
   }
 
   @override
+  @JsonKey()
+  final double totalBet;
+  @override
+  @JsonKey()
+  final double totalWon;
+  @override
+  @JsonKey()
+  final double totalLost;
+  @override
   final String? errorMessage;
 
   @override
   String toString() {
-    return 'WalletState(balance: $balance, lockedAmount: $lockedAmount, isBroke: $isBroke, isLoading: $isLoading, transactionHistory: $transactionHistory, errorMessage: $errorMessage)';
+    return 'WalletState(balance: $balance, lockedAmount: $lockedAmount, isBroke: $isBroke, isLoading: $isLoading, transactionHistory: $transactionHistory, totalBet: $totalBet, totalWon: $totalWon, totalLost: $totalLost, errorMessage: $errorMessage)';
   }
 
   @override
@@ -218,6 +269,12 @@ class _$WalletStateImpl implements _WalletState {
                 other.isLoading == isLoading) &&
             const DeepCollectionEquality()
                 .equals(other._transactionHistory, _transactionHistory) &&
+            (identical(other.totalBet, totalBet) ||
+                other.totalBet == totalBet) &&
+            (identical(other.totalWon, totalWon) ||
+                other.totalWon == totalWon) &&
+            (identical(other.totalLost, totalLost) ||
+                other.totalLost == totalLost) &&
             (identical(other.errorMessage, errorMessage) ||
                 other.errorMessage == errorMessage));
   }
@@ -230,6 +287,9 @@ class _$WalletStateImpl implements _WalletState {
       isBroke,
       isLoading,
       const DeepCollectionEquality().hash(_transactionHistory),
+      totalBet,
+      totalWon,
+      totalLost,
       errorMessage);
 
   /// Create a copy of WalletState
@@ -248,6 +308,9 @@ abstract class _WalletState implements WalletState {
       final bool isBroke,
       final bool isLoading,
       final List<TransactionModel> transactionHistory,
+      final double totalBet,
+      final double totalWon,
+      final double totalLost,
       final String? errorMessage}) = _$WalletStateImpl;
 
   @override
@@ -260,6 +323,12 @@ abstract class _WalletState implements WalletState {
   bool get isLoading;
   @override
   List<TransactionModel> get transactionHistory;
+  @override
+  double get totalBet;
+  @override
+  double get totalWon;
+  @override
+  double get totalLost;
   @override
   String? get errorMessage;
 

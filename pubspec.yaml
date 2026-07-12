@@ -85,3 +85,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true #Turn on icon + theme
+  assets:
+    - .env

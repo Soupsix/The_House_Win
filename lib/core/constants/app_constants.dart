@@ -2,9 +2,9 @@
 class AppConstants {
   AppConstants._();
 
-  // Số dư ví ảo mặc định khi khởi tạo (1.000.000 VNĐ)
-  static const double initialBalance = 1000000.0;
+  // Số dư ví ảo mặc định khi khởi tạo: 0 VNĐ (Admin nạp tiền thủ công)
+  static const double initialBalance = 0.0;
 
-  // Ngưỡng cháy túi (10% vốn ban đầu)
-  static const double brokeThreshold = 0.1;
+  // Ngưỡng cháy túi: dưới 50.000 VNĐ
+  static const double brokeThreshold = 50000.0;
 }

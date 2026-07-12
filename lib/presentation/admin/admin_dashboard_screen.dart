@@ -22,6 +22,17 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   int _currentTab = 0; // 0: Dashboard, 1: Players, 2: Matches, 3: Logs
   final TextEditingController _searchController = TextEditingController();
 
+  @override
+  void initState() {
+    super.initState();
+    // Load matches from Firestore when admin panel opens
+    Future.microtask(() async {
+      await ref.read(matchProvider.notifier).loadFromCache();
+      // Auto-sync real matches from API to Firebase on load
+      ref.read(matchProvider.notifier).adminSyncApiToFirestore();
+    });
+  }
+
   // Dialog configurations
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _oddsOverController = TextEditingController();
@@ -739,13 +750,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8.0,
+                runSpacing: 8.0,
                 children: [
                   const Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         'Yêu cầu rút tiền',
                         style: TextStyle(
                           fontSize: 16,
@@ -757,68 +771,18 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       Text(
                         'Duyệt hoặc từ chối các giao dịch tài chính.',
                         style:
-                            TextStyle(fontSize: 12, color: Color(0xFFE2BEBF)),
+                            const TextStyle(fontSize: 12, color: Color(0xFFE2BEBF)),
                       ),
                     ],
                   ),
-                  Row(
-                    children: [
-                      if (adminState.users.isNotEmpty)
-                        TextButton.icon(
-                          onPressed: () async {
-                            final firstUser = adminState.users.first;
-
-                            try {
-                              await ref
-                                  .read(adminRepositoryProvider)
-                                  .seedMockRequests(
-                                    firstUser.uid,
-                                    firstUser.displayName,
-                                  );
-
-                              if (!mounted) return;
-
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Đã tạo yêu cầu rút tiền mẫu thành công.',
-                                  ),
-                                  backgroundColor: Color(0xFF28DFB5),
-                                ),
-                              );
-                            } catch (error) {
-                              if (!mounted) return;
-
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Không thể tạo dữ liệu mẫu: $error',
-                                  ),
-                                  backgroundColor: Color(0xFFFC536D),
-                                ),
-                              );
-                            }
-                          },
-                          icon: const Icon(Icons.add, size: 14),
-                          label: const Text('Seed Mock',
-                              style: TextStyle(fontSize: 11)),
-                          style: TextButton.styleFrom(
-                            foregroundColor: const Color(0xFFFFB2B7),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                          ),
-                        ),
-                      const SizedBox(width: 8),
-                      TextButton(
-                        onPressed: () {
-                          setState(() {
-                            _currentTab = 1; // Switch to player list
-                          });
-                        },
-                        child: const Text('Xem tất cả',
-                            style: TextStyle(color: Color(0xFFFFB2B7))),
-                      ),
-                    ],
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _currentTab = 1;
+                      });
+                    },
+                    child: const Text('Xem tất cả',
+                        style: TextStyle(color: Color(0xFFFFB2B7))),
                   ),
                 ],
               ),
@@ -1264,43 +1228,30 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Quản lý người chơi',
-                  style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFFE2E2E2),
-                      fontFamily: 'Inter'),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Xem danh sách người chơi, số dư, số lần cháy túi và thực hiện thao tác khôi phục ví.',
-                  style: TextStyle(fontSize: 13, color: Color(0xFFE2BEBF)),
-                ),
-              ],
-            ),
-            if (filteredUsers.isNotEmpty)
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFFB2B7),
-                  foregroundColor: const Color(0xFF67001C),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                icon: const Icon(Icons.add),
-                label: const Text('Seed All Mock Requests',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                onPressed: () {
-                  for (var user in filteredUsers) {
-                    adminNotifier.seedMockRequests(user.uid, user.displayName);
-                  }
-                },
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Quản lý người chơi',
+                    style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFE2E2E2),
+                        fontFamily: 'Inter'),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Xem danh sách người chơi, số dư, số lần cháy túi và thực hiện thao tác khôi phục ví.',
+                    style: TextStyle(fontSize: 12, color: Color(0xFFE2BEBF)),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
+            ),
           ],
         ),
         const SizedBox(height: 24),
@@ -1416,8 +1367,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     const Divider(color: Color(0xFF333535)),
                     const SizedBox(height: 8),
                     // Action Buttons for User
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+                    Wrap(
+                      alignment: WrapAlignment.end,
+                      spacing: 8.0,
+                      runSpacing: 8.0,
                       children: [
                         // Reset wallet button
                         OutlinedButton.icon(
@@ -1428,11 +1381,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                 borderRadius: BorderRadius.circular(8)),
                           ),
                           icon: const Icon(Icons.refresh, size: 16),
-                          label: const Text('Reset Ví (1M)'),
+                          label: const Text('Reset về 0'),
                           onPressed: () => _showConfirmResetDialog(
                               context, adminNotifier, user),
                         ),
-                        const SizedBox(width: 12),
                         // Edit wallet balance button
                         ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
@@ -1446,8 +1398,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           onPressed: () => _showEditBalanceDialog(
                               context, adminNotifier, user, balance),
                         ),
-                        if (!user.isAdmin) ...[
-                          const SizedBox(width: 12),
+                        if (!user.isAdmin)
                           // Toggle Admin privilege
                           OutlinedButton.icon(
                             style: OutlinedButton.styleFrom(
@@ -1463,7 +1414,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                               adminNotifier.toggleAdminStatus(user.uid, true);
                             },
                           ),
-                        ],
                       ],
                     ),
                   ],
@@ -1563,8 +1513,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8.0,
+          runSpacing: 8.0,
           children: [
             const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1592,13 +1545,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     borderRadius: BorderRadius.circular(12)),
               ),
               icon: const Icon(Icons.add),
-              label: const Text('Tạo trận đấu giả lập',
+              label: const Text('Tạo trận giả lập',
                   style: TextStyle(fontWeight: FontWeight.bold)),
               onPressed: () => _showCreateMatchDialog(context),
             ),
           ],
         ),
         const SizedBox(height: 24),
+
         if (liveMatches.isNotEmpty) ...[
           const Text(
             'Trận đấu đang diễn ra',
@@ -1643,8 +1597,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             child: Padding(
               padding: EdgeInsets.symmetric(vertical: 40.0),
               child: Text(
-                'Không có trận đấu nào được lưu trong bộ nhớ tạm',
+                'Chưa có trận đấu nào. Hãy bấm "Tạo trận giả lập" để bắt đầu!',
                 style: TextStyle(color: Color(0xFFE2BEBF), fontSize: 14),
+                textAlign: TextAlign.center,
               ),
             ),
           ),
@@ -1927,8 +1882,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           style: TextStyle(color: Color(0xFFE2BEBF)),
         ),
         actions: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
@@ -1942,6 +1897,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 },
                 child: const Text('TÀI (OVER)'),
               ),
+              const SizedBox(height: 8),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFFFB95A),
@@ -1954,6 +1910,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 },
                 child: const Text('HÒA (PUSH)'),
               ),
+              const SizedBox(height: 8),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF28DFB5),
@@ -1965,6 +1922,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   Navigator.pop(context);
                 },
                 child: const Text('XỈU (UNDER)'),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Hủy',
+                    style: TextStyle(color: Color(0xFFE2BEBF))),
               ),
             ],
           ),
@@ -1983,98 +1946,184 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E2020),
-        title: const Text('Tạo trận đấu giả lập mới',
-            style: TextStyle(color: Colors.white)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: _homeController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'Đội nhà (Home Team)',
-                  labelStyle: TextStyle(color: Color(0xFFE2BEBF)),
-                ),
+      builder: (context) {
+        DateTime matchDateTime = DateTime.now().add(const Duration(hours: 2));
+        final dateFormat = DateFormat('HH:mm - dd/MM/yyyy');
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            backgroundColor: const Color(0xFF1E2020),
+            title: const Text('Tạo trận đấu giả lập mới',
+                style: TextStyle(color: Colors.white)),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: _homeController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: 'Đội nhà (Home Team)',
+                      labelStyle: TextStyle(color: Color(0xFFE2BEBF)),
+                    ),
+                  ),
+                  TextField(
+                    controller: _awayController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: 'Đội khách (Away Team)',
+                      labelStyle: TextStyle(color: Color(0xFFE2BEBF)),
+                    ),
+                  ),
+                  TextField(
+                    controller: _lineController,
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: 'Mốc Tài Xỉu (ví dụ: 2.5)',
+                      labelStyle: TextStyle(color: Color(0xFFE2BEBF)),
+                    ),
+                  ),
+                  TextField(
+                    controller: _oddsOverController,
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: 'Odds Tài (ví dụ: 1.85)',
+                      labelStyle: TextStyle(color: Color(0xFFE2BEBF)),
+                    ),
+                  ),
+                  TextField(
+                    controller: _oddsUnderController,
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: 'Odds Xỉu (ví dụ: 1.95)',
+                      labelStyle: TextStyle(color: Color(0xFFE2BEBF)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('• Thời gian thi đấu',
+                        style: TextStyle(color: Color(0xFFE2BEBF), fontSize: 12)),
+                  ),
+                  const SizedBox(height: 6),
+                  InkWell(
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: matchDateTime,
+                        firstDate: DateTime.now(),
+                        lastDate:
+                            DateTime.now().add(const Duration(days: 365)),
+                        builder: (context, child) => Theme(
+                          data: ThemeData.dark().copyWith(
+                            colorScheme: const ColorScheme.dark(
+                              primary: Color(0xFFE94560),
+                              surface: Color(0xFF1E2020),
+                            ),
+                          ),
+                          child: child!,
+                        ),
+                      );
+                      if (date != null) {
+                        final time = await showTimePicker(
+                          context: context,
+                          initialTime: TimeOfDay.fromDateTime(matchDateTime),
+                          builder: (context, child) => Theme(
+                            data: ThemeData.dark().copyWith(
+                              colorScheme: const ColorScheme.dark(
+                                primary: Color(0xFFE94560),
+                                surface: Color(0xFF1E2020),
+                              ),
+                            ),
+                            child: child!,
+                          ),
+                        );
+                        if (time != null) {
+                          setDialogState(() {
+                            matchDateTime = DateTime(
+                              date.year, date.month, date.day,
+                              time.hour, time.minute,
+                            );
+                          });
+                        }
+                      }
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2A2A3A),
+                        border: Border.all(color: const Color(0xFFE94560).withOpacity(0.4)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            dateFormat.format(matchDateTime),
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold),
+                          ),
+                          const Icon(Icons.calendar_today,
+                              color: Color(0xFFE94560), size: 18),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              TextField(
-                controller: _awayController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'Đội khách (Away Team)',
-                  labelStyle: TextStyle(color: Color(0xFFE2BEBF)),
-                ),
+            ),
+            actions: [
+              TextButton(
+                child: const Text('Hủy', style: TextStyle(color: Colors.grey)),
+                onPressed: () => Navigator.pop(context),
               ),
-              TextField(
-                controller: _lineController,
-                keyboardType: TextInputType.number,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'Mốc Tài Xỉu (ví dụ: 2.5)',
-                  labelStyle: TextStyle(color: Color(0xFFE2BEBF)),
-                ),
-              ),
-              TextField(
-                controller: _oddsOverController,
-                keyboardType: TextInputType.number,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'Odds Tài (ví dụ: 1.85)',
-                  labelStyle: TextStyle(color: Color(0xFFE2BEBF)),
-                ),
-              ),
-              TextField(
-                controller: _oddsUnderController,
-                keyboardType: TextInputType.number,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'Odds Xỉu (ví dụ: 1.95)',
-                  labelStyle: TextStyle(color: Color(0xFFE2BEBF)),
-                ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFFB2B7),
+                    foregroundColor: const Color(0xFF67001C)),
+                child: const Text('Tạo trận'),
+                onPressed: () {
+                  final home = _homeController.text.trim();
+                  final away = _awayController.text.trim();
+                  final line =
+                      double.tryParse(_lineController.text) ?? 2.5;
+                  final over =
+                      double.tryParse(_oddsOverController.text) ?? 1.85;
+                  final under =
+                      double.tryParse(_oddsUnderController.text) ?? 1.95;
+
+                  if (home.isNotEmpty && away.isNotEmpty) {
+                    final match = MatchModel(
+                      id: 'sim_${matchDateTime.millisecondsSinceEpoch}',
+                      homeTeam: home,
+                      awayTeam: away,
+                      utcDate: matchDateTime,
+                      status: MatchStatus.scheduled,
+                      scoreHome: 0,
+                      scoreAway: 0,
+                      oddsOver: over,
+                      oddsUnder: under,
+                      overUnderLine: line,
+                      isSimulated: true,
+                    );
+                    ref
+                        .read(matchProvider.notifier)
+                        .createSimulatedMatch(match);
+                  }
+                  Navigator.pop(context);
+                },
               ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            child: const Text('Hủy', style: TextStyle(color: Colors.grey)),
-            onPressed: () => Navigator.pop(context),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFB2B7),
-                foregroundColor: const Color(0xFF67001C)),
-            child: const Text('Tạo trận'),
-            onPressed: () {
-              final home = _homeController.text.trim();
-              final away = _awayController.text.trim();
-              final line = double.tryParse(_lineController.text) ?? 2.5;
-              final over = double.tryParse(_oddsOverController.text) ?? 1.85;
-              final under = double.tryParse(_oddsUnderController.text) ?? 1.95;
-
-              if (home.isNotEmpty && away.isNotEmpty) {
-                final match = MatchModel(
-                  id: 'sim_${DateTime.now().millisecondsSinceEpoch}',
-                  homeTeam: home,
-                  awayTeam: away,
-                  utcDate: DateTime.now().add(const Duration(hours: 1)),
-                  status: MatchStatus.scheduled,
-                  scoreHome: 0,
-                  scoreAway: 0,
-                  oddsOver: over,
-                  oddsUnder: under,
-                  overUnderLine: line,
-                  isSimulated: true,
-                );
-                ref.read(matchProvider.notifier).createSimulatedMatch(match);
-              }
-              Navigator.pop(context);
-            },
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 

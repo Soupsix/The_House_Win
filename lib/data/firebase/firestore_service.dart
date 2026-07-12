@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../domain/models/user_model.dart';
+import '../../domain/models/match_model.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -19,7 +20,7 @@ class FirestoreService {
 
   Future<void> createWalletDocument(String uid) async {
     await _firestore.collection('wallets').doc(uid).set({
-      'balance': 1000000,
+      'balance': 0,
       'lockedAmount': 0,
       'isBroke': false,
       'createdAt': FieldValue.serverTimestamp(),
@@ -188,7 +189,7 @@ class FirestoreService {
 
     await _firestore.runTransaction((transaction) async {
       transaction.update(walletRef, {
-        'balance': 1000000.0,
+        'balance': 0.0,
         'lockedAmount': 0.0,
         'isBroke': false,
       });
@@ -196,7 +197,7 @@ class FirestoreService {
       transaction.set(transactionRef, {
         'userId': uid,
         'type': 'WALLET_RESET',
-        'amount': 1000000.0,
+        'amount': 0.0,
         'createdAt': FieldValue.serverTimestamp(),
       });
     });
@@ -239,6 +240,37 @@ class FirestoreService {
   Future<void> saveMatchInFirestore(
       String matchId, Map<String, dynamic> data) async {
     await _firestore.collection('matches').doc(matchId).set(data);
+  }
+
+  // Lấy tất cả các trận đấu từ Firestore
+  Future<List<MatchModel>> getAllMatches() async {
+    final snapshot = await _firestore.collection('matches').get();
+    return snapshot.docs
+        .map((doc) {
+          try {
+            return MatchModel.fromFirestore(doc);
+          } catch (_) {
+            return null;
+          }
+        })
+        .whereType<MatchModel>()
+        .toList();
+  }
+
+  // Stream realtime - tự động cập nhật khi có thay đổi
+  Stream<List<MatchModel>> streamMatches() {
+    return _firestore.collection('matches').snapshots().map((snap) {
+      return snap.docs
+          .map((doc) {
+            try {
+              return MatchModel.fromFirestore(doc);
+            } catch (_) {
+              return null;
+            }
+          })
+          .whereType<MatchModel>()
+          .toList();
+    });
   }
 
   // --- Bets Operations ---
@@ -480,4 +512,26 @@ class FirestoreService {
       await _firestore.collection('withdrawal_requests').add(mock);
     }
   }
+
+  // User gửi yêu cầu rút tiền (2.7)
+  Future<void> createWithdrawalRequest({
+    required String uid,
+    required double amount,
+    required String method,
+  }) async {
+    // Lấy displayName từ user document
+    final userDoc = await _firestore.collection('users').doc(uid).get();
+    final displayName =
+        userDoc.data()?['displayName'] as String? ?? 'Người dùng';
+
+    await _firestore.collection('withdrawal_requests').add({
+      'userId': uid,
+      'displayName': displayName,
+      'amount': amount,
+      'method': method,
+      'status': 'pending',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
 }
+
