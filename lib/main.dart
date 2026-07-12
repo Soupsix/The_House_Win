@@ -9,6 +9,7 @@ import 'core/router/app_router.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'application/bets/bet_provider.dart';
+import 'application/bets/dice_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,13 +45,13 @@ class _TheHouseWinsAppState extends ConsumerState<TheHouseWinsApp> {
   void initState() {
     super.initState();
     // Khởi động timer service của phiên cược Tài Xỉu
-    ref.read(sessionTimerServiceProvider).start();
+    ref.read(diceTimerServiceProvider).start();
   }
 
   @override
   void dispose() {
     // Dừng timer khi đóng app
-    ref.read(sessionTimerServiceProvider).stop();
+    ref.read(diceTimerServiceProvider).stop();
     super.dispose();
   }
 

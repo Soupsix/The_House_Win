@@ -7,6 +7,7 @@ import '../../application/admin/admin_notifier.dart';
 import '../../application/matches/match_provider.dart';
 import '../../application/auth/auth_provider.dart';
 import '../../application/bets/bet_provider.dart';
+import '../../application/bets/dice_provider.dart';
 import '../../domain/models/match_model.dart';
 import '../../domain/models/user_model.dart';
 import '../../domain/enums/match_status.dart';
@@ -353,7 +354,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       }
 
       try {
-        await ref.read(bettingSessionServiceProvider).updateSessionOdds(
+        await ref.read(diceSessionServiceProvider).updateSessionOdds(
               sessionId: session.sessionId,
               oddsOver: oddsOver,
               oddsUnder: oddsUnder,
@@ -378,9 +379,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
   // Active Betting Session UI Card for Admin Panel
   Widget _buildActiveSessionCard(BuildContext context, WidgetRef ref) {
-    final activeSession = ref.watch(activeSessionProvider);
-    final countdown = ref.watch(countdownProvider);
-    final status = ref.watch(sessionStatusProvider);
+    final activeSession = ref.watch(diceActiveSessionProvider);
+    final countdown = ref.watch(diceCountdownProvider);
+    final status = ref.watch(diceSessionStatusProvider);
     final user = ref.read(currentUserProvider);
     final adminId = user?.uid ?? 'admin';
 
@@ -553,7 +554,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       ? null
                       : () async {
                           try {
-                            await ref.read(bettingSessionServiceProvider).adminOverrideResult(
+                            await ref.read(diceSessionServiceProvider).adminOverrideResult(
                                   sessionId: activeSession.sessionId,
                                   result: 'under',
                                   adminId: adminId,
@@ -594,7 +595,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       ? null
                       : () async {
                           try {
-                            await ref.read(bettingSessionServiceProvider).adminOverrideResult(
+                            await ref.read(diceSessionServiceProvider).adminOverrideResult(
                                   sessionId: activeSession.sessionId,
                                   result: 'over',
                                   adminId: adminId,
@@ -3868,7 +3869,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
   // Sub-Tab 1: Lịch sử và trạng thái các phiên cược
   Widget _buildTaiXiuSessionsSubTab() {
-    final bettingService = ref.read(bettingSessionServiceProvider);
+    final bettingService = ref.read(diceSessionServiceProvider);
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('betting_sessions')
@@ -4168,7 +4169,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           builder: (_) => const Center(child: CircularProgressIndicator()),
         );
         
-        await ref.read(bettingSessionServiceProvider).adminOverrideSettleResult(
+        await ref.read(diceSessionServiceProvider).adminOverrideSettleResult(
           sessionId: sessionId,
           newResult: newResult,
         );
@@ -4382,7 +4383,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           builder: (_) => const Center(child: CircularProgressIndicator()),
         );
 
-        await ref.read(bettingSessionServiceProvider).adminUpdateBetStatus(
+        await ref.read(diceSessionServiceProvider).adminUpdateBetStatus(
           betId: betId,
           newStatus: newStatus,
         );

@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../application/bets/bet_provider.dart';
-import '../../application/bets/bet_state.dart';
+import '../../application/bets/dice_provider.dart';
+import '../../application/bets/dice_state.dart';
 import '../../application/wallet/wallet_provider.dart';
 import '../../application/wallet/wallet_state.dart';
 import '../../application/auth/auth_provider.dart';
@@ -91,7 +91,7 @@ class _BetScreenState extends ConsumerState<BetScreen>
     Future.microtask(() {
       final user = ref.read(currentUserProvider);
       if (user != null) {
-        ref.read(betProvider.notifier).initialize(user.uid);
+        ref.read(diceProvider.notifier).initialize(user.uid);
       }
     });
   }
@@ -140,8 +140,8 @@ class _BetScreenState extends ConsumerState<BetScreen>
       _shakeController.reset();
       if (!mounted) return;
 
-      // Lấy kết quả thật từ recent sessions
-      final recent = ref.read(recentSessionsProvider).valueOrNull;
+      // Update recent sessions from diceRecentSessionsProvider
+      final recent = ref.read(diceRecentSessionsProvider).valueOrNull;
       List<int> finalDice = [1, 3, 2];
       String? finalResult;
 
@@ -233,7 +233,8 @@ class _BetScreenState extends ConsumerState<BetScreen>
       return;
     }
 
-    final sessionStatus = ref.read(sessionStatusProvider);
+    // Mở bottom sheet nếu vẫn open
+    final sessionStatus = ref.read(diceSessionStatusProvider);
     if (sessionStatus != SessionStatus.open) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -244,9 +245,9 @@ class _BetScreenState extends ConsumerState<BetScreen>
       return;
     }
 
-    ref.read(betProvider.notifier).draftSessionBet(_selectedChoice, _selectedChip);
+    ref.read(diceProvider.notifier).draftSessionBet(_selectedChoice, _selectedChip);
 
-    final draftError = ref.read(betProvider).errorMessage;
+    final draftError = ref.read(diceProvider).errorMessage;
     if (draftError != null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -270,7 +271,7 @@ class _BetScreenState extends ConsumerState<BetScreen>
   @override
   Widget build(BuildContext context) {
     // Lắng nghe BetState để bắt thắng/thua — nhưng delay nếu đang rolling
-    ref.listen<BetState>(betProvider, (previous, next) {
+    ref.listen<DiceState>(diceProvider, (previous, next) {
       if (next.successMessage != null && next.successMessage != previous?.successMessage) {
         if (next.successMessage!.contains('thắng') || next.successMessage!.contains('thành công')) {
           if (_isRolling) {
@@ -314,7 +315,7 @@ class _BetScreenState extends ConsumerState<BetScreen>
     });
 
     // Lắng nghe sessionStatus để bắt thời điểm phiên kết thúc → bắt đầu rolling
-    ref.listen<SessionStatus>(sessionStatusProvider, (previous, next) {
+    ref.listen<SessionStatus>(diceSessionStatusProvider, (previous, next) {
       if (previous != SessionStatus.settled && next == SessionStatus.settled) {
         if (!_isRolling) {
           _startRolling();
@@ -330,12 +331,12 @@ class _BetScreenState extends ConsumerState<BetScreen>
       }
     });
 
-    final countdown = ref.watch(countdownProvider);
-    final sessionStatus = ref.watch(sessionStatusProvider);
-    final activeSession = ref.watch(activeSessionProvider);
+    final countdown = ref.watch(diceCountdownProvider);
+    final sessionStatus = ref.watch(diceSessionStatusProvider);
+    final activeSession = ref.watch(diceActiveSessionProvider);
     final walletState = ref.watch(walletProvider);
-    final betState = ref.watch(betProvider);
-    final recentSessions = ref.watch(recentSessionsProvider).valueOrNull ?? [];
+    final betState = ref.watch(diceProvider);
+    final recentSessions = ref.watch(diceRecentSessionsProvider).valueOrNull ?? [];
     final isSubmitting = betState.isSubmitting;
     final isLocked = sessionStatus == SessionStatus.locked;
     final isSettled = sessionStatus == SessionStatus.settled;
@@ -353,7 +354,7 @@ class _BetScreenState extends ConsumerState<BetScreen>
                 children: [
                   _buildDiceArea(activeSession),
                   const SizedBox(height: 20),
-                  _buildChoiceCards(activeSession, ref.watch(currentSessionBetsProvider)),
+                  _buildChoiceCards(activeSession, ref.watch(diceCurrentSessionBetsProvider)),
                   const SizedBox(height: 20),
                   _buildChipSelector(walletState.availableBalance, isLocked || isSettled),
                   const SizedBox(height: 16),

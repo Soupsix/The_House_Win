@@ -104,9 +104,9 @@ class _MyBetsScreenState extends ConsumerState<MyBetsScreen>
     );
   }
 
-  // Tab cược phiên đang chạy
+  // Tab cược phiên đang chạy (Bóng đá pending)
   Widget _buildActiveTab(String uid) {
-    final activeBets = ref.watch(currentSessionBetsProvider);
+    final activeBets = ref.watch(pendingBetsProvider);
 
     if (activeBets.isEmpty) {
       return _buildEmptyState('Không có đơn cược pending trong phiên này');
@@ -149,7 +149,7 @@ class _MyBetsScreenState extends ConsumerState<MyBetsScreen>
               margin: const EdgeInsets.only(top: 8, bottom: 24),
               child: Center(
                 child: TextButton(
-                  onPressed: () => ref.read(betProvider.notifier).loadMoreHistory(uid),
+                  onPressed: () => ref.read(betProvider.notifier).loadBets(uid),
                   child: isLoading
                       ? const SizedBox(
                           width: 16,

@@ -2,14 +2,15 @@ import 'dart:async';
 import 'dart:math';
 import '../../domain/enums/session_status.dart';
 import '../../domain/models/betting_session_model.dart';
+import '../../domain/models/game_session_config.dart';
 import '../../data/firebase/betting_session_service.dart';
 
-// Service quản lý vòng đời 60 giây của phiên cược Tài Xỉu
+// Service quản lý vòng đời của các phiên cược theo cấu hình
 class SessionTimerService {
   final BettingSessionService _sessionService;
+  final GameSessionConfig config;
 
-  static const int sessionDuration = 60;
-  static const int lockThreshold = 10;
+  static const int lockThreshold = 10; // Giữ nguyên khóa 10 giây trước khi hết giờ (khi openDuration > 0)
 
   StreamSubscription? _sessionSubscription;
   Timer? _ticker;
@@ -19,7 +20,7 @@ class SessionTimerService {
   final _countdownController = StreamController<int>.broadcast();
   final _statusController = StreamController<SessionStatus>.broadcast();
 
-  SessionTimerService(this._sessionService);
+  SessionTimerService(this._sessionService, this.config);
 
   // Khởi động timer service — lắng nghe Firestore và quản lý đếm ngược
   Future<void> start() async {
@@ -65,7 +66,8 @@ class SessionTimerService {
 
     // Phát tán giá trị ban đầu ngay lập tức
     final elapsedInit = DateTime.now().difference(session.startedAt).inSeconds;
-    final remainingInit = (sessionDuration - elapsedInit).clamp(0, sessionDuration);
+    final sessionDurationSeconds = config.openDuration.inSeconds;
+    final remainingInit = (sessionDurationSeconds - elapsedInit).clamp(0, sessionDurationSeconds);
     _countdownController.add(remainingInit);
     _statusController.add(session.status);
 
@@ -78,7 +80,7 @@ class SessionTimerService {
 
       final now = DateTime.now();
       final elapsed = now.difference(currentSession.startedAt).inSeconds;
-      final remaining = (sessionDuration - elapsed).clamp(0, sessionDuration);
+      final remaining = (sessionDurationSeconds - elapsed).clamp(0, sessionDurationSeconds);
 
       _countdownController.add(remaining);
 
@@ -144,7 +146,7 @@ class SessionTimerService {
       final latest = await _sessionService.getLatestSession();
       if (latest != null && latest.status == SessionStatus.settled && latest.settledAt != null) {
         final elapsed = DateTime.now().difference(latest.settledAt!).inMilliseconds;
-        const cooldownMs = BettingSessionService.postSettleCooldown * 1000;
+        final cooldownMs = config.lockBuffer.inMilliseconds;
         final remaining = cooldownMs - elapsed;
         if (remaining > 0) {
           delayMs = remaining;

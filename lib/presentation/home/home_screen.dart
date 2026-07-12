@@ -11,7 +11,7 @@ import '../../core/router/app_routes.dart';
 import '../../domain/enums/auth_status.dart';
 import '../anti_gambling/loan_trap_screen.dart';
 import '../wallet/wallet_screen.dart';
-import '../matches/matches_screen.dart';
+
 import '../leagues/leagues_screen.dart';
 import '../arenas/arenas_screen.dart';
 import '../profile/profile_screen.dart';
@@ -68,15 +68,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         currentUser,
         showLoanTrap,
       ),
-      const MatchesScreen(), // index 1
+      const ArenasScreen(), // index 1 - Sàn đấu
       const LeaguesScreen(), // index 2 - Giải đấu (available to all users)
       if (!isGuest) ...[
-        const WalletScreen(), // index 3
-        ProfileScreen(        // index 4
-      const ArenasScreen(),
-      if (!isGuest) ...[
-        const WalletScreen(),
-        ProfileScreen(
+        const WalletScreen(), // index 3 - Ví
+        ProfileScreen(        // index 4 - Hồ sơ
           onBackToHome: () {
             setState(() {
               _selectedIndex = 0;

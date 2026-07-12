@@ -1,9 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../domain/enums/game_type.dart';
 import '../../domain/models/user_model.dart';
 import '../../domain/models/match_model.dart';
 
 class FirestoreService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore _firestore;
+
+  FirestoreService({FirebaseFirestore? firestore})
+      : _firestore = firestore ?? FirebaseFirestore.instance;
   Stream<List<Map<String, dynamic>>> watchAdminMatches() {
     return _firestore.collection('matches').snapshots().map((snapshot) {
       final matches = snapshot.docs.map((doc) {
@@ -87,53 +91,14 @@ class FirestoreService {
     return await _firestore.collection('wallets').doc(uid).get();
   }
 
-  // Thực hiện giao dịch (Transaction) Firestore để đặt cược (Deduct Bet)
-  Future<void> runDeductBetTransaction({
+  // Thực hiện giao dịch (Transaction) chung cho mọi mini-game (Đặt cược và Trả thưởng)
+  Future<void> processGameTransaction({
     required String uid,
     required double amount,
-    required String betId,
-  }) async {
-    final walletRef = _firestore.collection('wallets').doc(uid);
-    final transactionRef = _firestore.collection('transactions').doc();
-
-    await _firestore.runTransaction((transaction) async {
-      final walletDoc = await transaction.get(walletRef);
-      if (!walletDoc.exists) {
-        throw Exception("Ví ảo không tồn tại");
-      }
-
-      final data = walletDoc.data()!;
-      final balance = (data['balance'] as num?)?.toDouble() ?? 0.0;
-      final lockedAmount = (data['lockedAmount'] as num?)?.toDouble() ?? 0.0;
-      final availableBalance = balance - lockedAmount;
-
-      if (availableBalance < amount) {
-        throw Exception("Số dư khả dụng không đủ để thực hiện đặt cược");
-      }
-
-      // Chỉ khóa tiền, không trừ balance ngay
-      // → availableBalance = balance - lockedAmount hiển thị đúng (chỉ trừ 1 lần)
-      transaction.update(walletRef, {
-        'lockedAmount': lockedAmount + amount,
-      });
-
-      transaction.set(transactionRef, {
-        'userId': uid,
-        'type': 'BET_LOCKED',
-        'amount': amount,
-        'referenceId': betId,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-    });
-  }
-
-  // Thực hiện giải quyết cược (Settle Bet) trong Firestore
-  Future<void> runSettleBetTransaction({
-    required String uid,
-    required double amount,
-    required double payout,
-    required String betId,
-    required bool isWin,
+    double? payout, // Cần truyền nếu type là BET_WIN
+    required String type, // 'BET_LOCKED', 'BET_WIN', 'BET_LOSE'
+    required GameType gameType,
+    required String referenceId,
   }) async {
     final walletRef = _firestore.collection('wallets').doc(uid);
     final transactionRef = _firestore.collection('transactions').doc();
@@ -148,22 +113,36 @@ class FirestoreService {
       final balance = (data['balance'] as num?)?.toDouble() ?? 0.0;
       final lockedAmount = (data['lockedAmount'] as num?)?.toDouble() ?? 0.0;
 
-      final nextLockedAmount =
-          (lockedAmount - amount < 0) ? 0.0 : lockedAmount - amount;
-      // Thắng: cộng payout (vốn + lời) vào balance
-      // Thua: trừ tiền đặt cược khỏi balance (mới thực sự mất)
-      final nextBalance = isWin ? (balance + payout) : (balance - amount);
-
-      transaction.update(walletRef, {
-        'lockedAmount': nextLockedAmount,
-        'balance': nextBalance,
-      });
+      if (type == 'BET_LOCKED') {
+        final availableBalance = balance - lockedAmount;
+        if (availableBalance < amount) {
+          throw Exception("Số dư khả dụng không đủ để thực hiện đặt cược");
+        }
+        
+        transaction.update(walletRef, {
+          'lockedAmount': lockedAmount + amount,
+        });
+      } else {
+        // Trả thưởng: giải phóng tiền khóa
+        final nextLockedAmount =
+            (lockedAmount - amount < 0) ? 0.0 : lockedAmount - amount;
+            
+        // Thắng: cộng payout vào balance
+        // Thua: trừ vốn khỏi balance
+        final nextBalance = (type == 'BET_WIN') ? (balance + (payout ?? 0.0)) : (balance - amount);
+        
+        transaction.update(walletRef, {
+          'lockedAmount': nextLockedAmount,
+          'balance': nextBalance,
+        });
+      }
 
       transaction.set(transactionRef, {
         'userId': uid,
-        'type': isWin ? 'BET_WIN' : 'BET_LOSE',
-        'amount': isWin ? payout : amount,
-        'referenceId': betId,
+        'type': type,
+        'amount': (type == 'BET_WIN') ? (payout ?? 0.0) : amount,
+        'referenceId': referenceId,
+        'gameType': gameType.name,
         'createdAt': FieldValue.serverTimestamp(),
       });
     });

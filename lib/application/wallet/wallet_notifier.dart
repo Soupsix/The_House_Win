@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_constants.dart';
 import '../../data/firebase/firestore_service.dart';
 import '../../domain/models/transaction_model.dart';
+import '../../domain/enums/game_type.dart';
 import 'wallet_state.dart';
 
 class WalletNotifier extends StateNotifier<WalletState> {
@@ -135,10 +136,12 @@ class WalletNotifier extends StateNotifier<WalletState> {
     );
 
     try {
-      await _firestoreService.runDeductBetTransaction(
+      await _firestoreService.processGameTransaction(
         uid: uid,
         amount: amount,
-        betId: betId,
+        type: 'BET_LOCKED',
+        gameType: GameType.diceOverUnder, // Mặc định Tài/Xỉu
+        referenceId: betId,
       );
 
       await loadWallet(uid);
@@ -165,12 +168,13 @@ class WalletNotifier extends StateNotifier<WalletState> {
     );
 
     try {
-      await _firestoreService.runSettleBetTransaction(
+      await _firestoreService.processGameTransaction(
         uid: uid,
         amount: amount,
         payout: payout,
-        betId: betId,
-        isWin: isWin,
+        type: isWin ? 'BET_WIN' : 'BET_LOSE',
+        gameType: GameType.diceOverUnder, // Mặc định Tài/Xỉu
+        referenceId: betId,
       );
 
       await loadWallet(uid);
