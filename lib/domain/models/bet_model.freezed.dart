@@ -22,9 +22,11 @@ BetModel _$BetModelFromJson(Map<String, dynamic> json) {
 mixin _$BetModel {
   String get id => throw _privateConstructorUsedError;
   String get userId => throw _privateConstructorUsedError;
-  String get matchId => throw _privateConstructorUsedError;
-  String get homeTeam => throw _privateConstructorUsedError;
-  String get awayTeam => throw _privateConstructorUsedError;
+  String? get matchId => throw _privateConstructorUsedError;
+  String? get homeTeam => throw _privateConstructorUsedError;
+  String? get awayTeam => throw _privateConstructorUsedError;
+  String? get sessionId => throw _privateConstructorUsedError;
+  int? get sessionNumber => throw _privateConstructorUsedError;
   BetChoice get choice => throw _privateConstructorUsedError;
   double get amount => throw _privateConstructorUsedError;
   double get oddsAtTime => throw _privateConstructorUsedError;
@@ -51,9 +53,11 @@ abstract class $BetModelCopyWith<$Res> {
   $Res call(
       {String id,
       String userId,
-      String matchId,
-      String homeTeam,
-      String awayTeam,
+      String? matchId,
+      String? homeTeam,
+      String? awayTeam,
+      String? sessionId,
+      int? sessionNumber,
       BetChoice choice,
       double amount,
       double oddsAtTime,
@@ -80,9 +84,11 @@ class _$BetModelCopyWithImpl<$Res, $Val extends BetModel>
   $Res call({
     Object? id = null,
     Object? userId = null,
-    Object? matchId = null,
-    Object? homeTeam = null,
-    Object? awayTeam = null,
+    Object? matchId = freezed,
+    Object? homeTeam = freezed,
+    Object? awayTeam = freezed,
+    Object? sessionId = freezed,
+    Object? sessionNumber = freezed,
     Object? choice = null,
     Object? amount = null,
     Object? oddsAtTime = null,
@@ -100,18 +106,26 @@ class _$BetModelCopyWithImpl<$Res, $Val extends BetModel>
           ? _value.userId
           : userId // ignore: cast_nullable_to_non_nullable
               as String,
-      matchId: null == matchId
+      matchId: freezed == matchId
           ? _value.matchId
           : matchId // ignore: cast_nullable_to_non_nullable
-              as String,
-      homeTeam: null == homeTeam
+              as String?,
+      homeTeam: freezed == homeTeam
           ? _value.homeTeam
           : homeTeam // ignore: cast_nullable_to_non_nullable
-              as String,
-      awayTeam: null == awayTeam
+              as String?,
+      awayTeam: freezed == awayTeam
           ? _value.awayTeam
           : awayTeam // ignore: cast_nullable_to_non_nullable
-              as String,
+              as String?,
+      sessionId: freezed == sessionId
+          ? _value.sessionId
+          : sessionId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      sessionNumber: freezed == sessionNumber
+          ? _value.sessionNumber
+          : sessionNumber // ignore: cast_nullable_to_non_nullable
+              as int?,
       choice: null == choice
           ? _value.choice
           : choice // ignore: cast_nullable_to_non_nullable
@@ -155,9 +169,11 @@ abstract class _$$BetModelImplCopyWith<$Res>
   $Res call(
       {String id,
       String userId,
-      String matchId,
-      String homeTeam,
-      String awayTeam,
+      String? matchId,
+      String? homeTeam,
+      String? awayTeam,
+      String? sessionId,
+      int? sessionNumber,
       BetChoice choice,
       double amount,
       double oddsAtTime,
@@ -182,9 +198,11 @@ class __$$BetModelImplCopyWithImpl<$Res>
   $Res call({
     Object? id = null,
     Object? userId = null,
-    Object? matchId = null,
-    Object? homeTeam = null,
-    Object? awayTeam = null,
+    Object? matchId = freezed,
+    Object? homeTeam = freezed,
+    Object? awayTeam = freezed,
+    Object? sessionId = freezed,
+    Object? sessionNumber = freezed,
     Object? choice = null,
     Object? amount = null,
     Object? oddsAtTime = null,
@@ -202,18 +220,26 @@ class __$$BetModelImplCopyWithImpl<$Res>
           ? _value.userId
           : userId // ignore: cast_nullable_to_non_nullable
               as String,
-      matchId: null == matchId
+      matchId: freezed == matchId
           ? _value.matchId
           : matchId // ignore: cast_nullable_to_non_nullable
-              as String,
-      homeTeam: null == homeTeam
+              as String?,
+      homeTeam: freezed == homeTeam
           ? _value.homeTeam
           : homeTeam // ignore: cast_nullable_to_non_nullable
-              as String,
-      awayTeam: null == awayTeam
+              as String?,
+      awayTeam: freezed == awayTeam
           ? _value.awayTeam
           : awayTeam // ignore: cast_nullable_to_non_nullable
-              as String,
+              as String?,
+      sessionId: freezed == sessionId
+          ? _value.sessionId
+          : sessionId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      sessionNumber: freezed == sessionNumber
+          ? _value.sessionNumber
+          : sessionNumber // ignore: cast_nullable_to_non_nullable
+              as int?,
       choice: null == choice
           ? _value.choice
           : choice // ignore: cast_nullable_to_non_nullable
@@ -252,9 +278,11 @@ class _$BetModelImpl implements _BetModel {
   const _$BetModelImpl(
       {required this.id,
       required this.userId,
-      required this.matchId,
-      required this.homeTeam,
-      required this.awayTeam,
+      this.matchId,
+      this.homeTeam,
+      this.awayTeam,
+      this.sessionId,
+      this.sessionNumber,
       required this.choice,
       required this.amount,
       required this.oddsAtTime,
@@ -271,11 +299,15 @@ class _$BetModelImpl implements _BetModel {
   @override
   final String userId;
   @override
-  final String matchId;
+  final String? matchId;
   @override
-  final String homeTeam;
+  final String? homeTeam;
   @override
-  final String awayTeam;
+  final String? awayTeam;
+  @override
+  final String? sessionId;
+  @override
+  final int? sessionNumber;
   @override
   final BetChoice choice;
   @override
@@ -294,7 +326,7 @@ class _$BetModelImpl implements _BetModel {
 
   @override
   String toString() {
-    return 'BetModel(id: $id, userId: $userId, matchId: $matchId, homeTeam: $homeTeam, awayTeam: $awayTeam, choice: $choice, amount: $amount, oddsAtTime: $oddsAtTime, payout: $payout, status: $status, createdAt: $createdAt, settledAt: $settledAt)';
+    return 'BetModel(id: $id, userId: $userId, matchId: $matchId, homeTeam: $homeTeam, awayTeam: $awayTeam, sessionId: $sessionId, sessionNumber: $sessionNumber, choice: $choice, amount: $amount, oddsAtTime: $oddsAtTime, payout: $payout, status: $status, createdAt: $createdAt, settledAt: $settledAt)';
   }
 
   @override
@@ -309,6 +341,10 @@ class _$BetModelImpl implements _BetModel {
                 other.homeTeam == homeTeam) &&
             (identical(other.awayTeam, awayTeam) ||
                 other.awayTeam == awayTeam) &&
+            (identical(other.sessionId, sessionId) ||
+                other.sessionId == sessionId) &&
+            (identical(other.sessionNumber, sessionNumber) ||
+                other.sessionNumber == sessionNumber) &&
             (identical(other.choice, choice) || other.choice == choice) &&
             (identical(other.amount, amount) || other.amount == amount) &&
             (identical(other.oddsAtTime, oddsAtTime) ||
@@ -330,6 +366,8 @@ class _$BetModelImpl implements _BetModel {
       matchId,
       homeTeam,
       awayTeam,
+      sessionId,
+      sessionNumber,
       choice,
       amount,
       oddsAtTime,
@@ -358,9 +396,11 @@ abstract class _BetModel implements BetModel {
   const factory _BetModel(
       {required final String id,
       required final String userId,
-      required final String matchId,
-      required final String homeTeam,
-      required final String awayTeam,
+      final String? matchId,
+      final String? homeTeam,
+      final String? awayTeam,
+      final String? sessionId,
+      final int? sessionNumber,
       required final BetChoice choice,
       required final double amount,
       required final double oddsAtTime,
@@ -377,11 +417,15 @@ abstract class _BetModel implements BetModel {
   @override
   String get userId;
   @override
-  String get matchId;
+  String? get matchId;
   @override
-  String get homeTeam;
+  String? get homeTeam;
   @override
-  String get awayTeam;
+  String? get awayTeam;
+  @override
+  String? get sessionId;
+  @override
+  int? get sessionNumber;
   @override
   BetChoice get choice;
   @override

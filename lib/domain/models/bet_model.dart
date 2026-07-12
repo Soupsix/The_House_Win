@@ -6,15 +6,17 @@ import '../enums/bet_status.dart';
 part 'bet_model.freezed.dart';
 part 'bet_model.g.dart';
 
-// Model đại diện cho một Đơn cược
+// Model đại diện cho một Đơn cược (Trận đấu hoặc Phiên cược Tài Xỉu)
 @freezed
 class BetModel with _$BetModel {
   const factory BetModel({
     required String id,
     required String userId,
-    required String matchId,
-    required String homeTeam,
-    required String awayTeam,
+    String? matchId,
+    String? homeTeam,
+    String? awayTeam,
+    String? sessionId,
+    int? sessionNumber,
     required BetChoice choice,
     required double amount,
     required double oddsAtTime,
@@ -37,9 +39,11 @@ class BetModel with _$BetModel {
     return BetModel(
       id: doc.id,
       userId: data['userId'] as String? ?? '',
-      matchId: data['matchId'] as String? ?? '',
-      homeTeam: data['homeTeam'] as String? ?? '',
-      awayTeam: data['awayTeam'] as String? ?? '',
+      matchId: data['matchId'] as String?,
+      homeTeam: data['homeTeam'] as String?,
+      awayTeam: data['awayTeam'] as String?,
+      sessionId: data['sessionId'] as String?,
+      sessionNumber: (data['sessionNumber'] as num?)?.toInt(),
       choice: BetChoice.values.firstWhere(
         (e) => e.name == data['choice'],
         orElse: () => BetChoice.over,
@@ -61,9 +65,12 @@ class BetModel with _$BetModel {
     return BetModel(
       id: map['id'] as String,
       userId: map['user_id'] as String,
-      matchId: map['match_id'] as String,
-      homeTeam: map['home_team'] as String,
-      awayTeam: map['away_team'] as String,
+      matchId: map['match_id'] as String?,
+      homeTeam: map['home_team'] as String?,
+      awayTeam: map['away_team'] as String?,
+      sessionId: map['match_id'] != null && map['match_id'].toString().startsWith('session_') 
+          ? map['match_id'] as String 
+          : null,
       choice: BetChoice.values.firstWhere(
         (e) => e.name == map['choice'],
         orElse: () => BetChoice.over,
@@ -92,6 +99,8 @@ extension BetModelStorageExtension on BetModel {
       'matchId': matchId,
       'homeTeam': homeTeam,
       'awayTeam': awayTeam,
+      'sessionId': sessionId,
+      'sessionNumber': sessionNumber,
       'choice': choice.name,
       'amount': amount,
       'oddsAtTime': oddsAtTime,
@@ -102,14 +111,14 @@ extension BetModelStorageExtension on BetModel {
     };
   }
 
-  // Chuyển đổi BetModel thành Map lưu vào SQLite
+  // Chuyển đổi BetModel thành Map lưu vào SQLite (với default fallbacks cho các cột NOT NULL)
   Map<String, dynamic> toSQLite() {
     return {
       'id': id,
       'user_id': userId,
-      'match_id': matchId,
-      'home_team': homeTeam,
-      'away_team': awayTeam,
+      'match_id': matchId ?? sessionId ?? 'session_bet',
+      'home_team': homeTeam ?? 'Tài Xỉu',
+      'away_team': awayTeam ?? (sessionNumber != null ? 'Phiên #$sessionNumber' : 'Phiên Cược'),
       'choice': choice.name,
       'amount': amount,
       'odds_at_time': oddsAtTime,

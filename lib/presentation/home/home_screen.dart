@@ -10,8 +10,9 @@ import '../../core/router/app_routes.dart';
 import '../../domain/enums/auth_status.dart';
 import '../anti_gambling/loan_trap_screen.dart';
 import '../wallet/wallet_screen.dart';
-import '../matches/matches_screen.dart';
+import '../arenas/arenas_screen.dart';
 import '../profile/profile_screen.dart';
+import '../betting/my_bets_screen.dart';
 import 'widgets/bottom_nav_bar.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -62,8 +63,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         currentUser,
         showLoanTrap,
       ),
-      const MatchesScreen(),
+      const ArenasScreen(),
       if (!isGuest) ...[
+        const MyBetsScreen(),
         const WalletScreen(),
         ProfileScreen(
           onBackToHome: () {
