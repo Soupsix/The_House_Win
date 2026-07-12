@@ -30,8 +30,12 @@ mixin _$MatchModel {
   MatchResult? get result => throw _privateConstructorUsedError;
   double get oddsOver => throw _privateConstructorUsedError;
   double get oddsUnder => throw _privateConstructorUsedError;
+  double get oddsDraw => throw _privateConstructorUsedError;
   double get overUnderLine => throw _privateConstructorUsedError;
   bool get isSimulated => throw _privateConstructorUsedError;
+  String get leagueName => throw _privateConstructorUsedError;
+  String get homeTeamLogo => throw _privateConstructorUsedError;
+  String get awayTeamLogo => throw _privateConstructorUsedError;
 
   /// Serializes this MatchModel to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -60,8 +64,12 @@ abstract class $MatchModelCopyWith<$Res> {
       MatchResult? result,
       double oddsOver,
       double oddsUnder,
+      double oddsDraw,
       double overUnderLine,
-      bool isSimulated});
+      bool isSimulated,
+      String leagueName,
+      String homeTeamLogo,
+      String awayTeamLogo});
 }
 
 /// @nodoc
@@ -89,8 +97,12 @@ class _$MatchModelCopyWithImpl<$Res, $Val extends MatchModel>
     Object? result = freezed,
     Object? oddsOver = null,
     Object? oddsUnder = null,
+    Object? oddsDraw = null,
     Object? overUnderLine = null,
     Object? isSimulated = null,
+    Object? leagueName = null,
+    Object? homeTeamLogo = null,
+    Object? awayTeamLogo = null,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -133,6 +145,10 @@ class _$MatchModelCopyWithImpl<$Res, $Val extends MatchModel>
           ? _value.oddsUnder
           : oddsUnder // ignore: cast_nullable_to_non_nullable
               as double,
+      oddsDraw: null == oddsDraw
+          ? _value.oddsDraw
+          : oddsDraw // ignore: cast_nullable_to_non_nullable
+              as double,
       overUnderLine: null == overUnderLine
           ? _value.overUnderLine
           : overUnderLine // ignore: cast_nullable_to_non_nullable
@@ -141,6 +157,18 @@ class _$MatchModelCopyWithImpl<$Res, $Val extends MatchModel>
           ? _value.isSimulated
           : isSimulated // ignore: cast_nullable_to_non_nullable
               as bool,
+      leagueName: null == leagueName
+          ? _value.leagueName
+          : leagueName // ignore: cast_nullable_to_non_nullable
+              as String,
+      homeTeamLogo: null == homeTeamLogo
+          ? _value.homeTeamLogo
+          : homeTeamLogo // ignore: cast_nullable_to_non_nullable
+              as String,
+      awayTeamLogo: null == awayTeamLogo
+          ? _value.awayTeamLogo
+          : awayTeamLogo // ignore: cast_nullable_to_non_nullable
+              as String,
     ) as $Val);
   }
 }
@@ -164,8 +192,12 @@ abstract class _$$MatchModelImplCopyWith<$Res>
       MatchResult? result,
       double oddsOver,
       double oddsUnder,
+      double oddsDraw,
       double overUnderLine,
-      bool isSimulated});
+      bool isSimulated,
+      String leagueName,
+      String homeTeamLogo,
+      String awayTeamLogo});
 }
 
 /// @nodoc
@@ -191,8 +223,12 @@ class __$$MatchModelImplCopyWithImpl<$Res>
     Object? result = freezed,
     Object? oddsOver = null,
     Object? oddsUnder = null,
+    Object? oddsDraw = null,
     Object? overUnderLine = null,
     Object? isSimulated = null,
+    Object? leagueName = null,
+    Object? homeTeamLogo = null,
+    Object? awayTeamLogo = null,
   }) {
     return _then(_$MatchModelImpl(
       id: null == id
@@ -235,6 +271,10 @@ class __$$MatchModelImplCopyWithImpl<$Res>
           ? _value.oddsUnder
           : oddsUnder // ignore: cast_nullable_to_non_nullable
               as double,
+      oddsDraw: null == oddsDraw
+          ? _value.oddsDraw
+          : oddsDraw // ignore: cast_nullable_to_non_nullable
+              as double,
       overUnderLine: null == overUnderLine
           ? _value.overUnderLine
           : overUnderLine // ignore: cast_nullable_to_non_nullable
@@ -243,6 +283,18 @@ class __$$MatchModelImplCopyWithImpl<$Res>
           ? _value.isSimulated
           : isSimulated // ignore: cast_nullable_to_non_nullable
               as bool,
+      leagueName: null == leagueName
+          ? _value.leagueName
+          : leagueName // ignore: cast_nullable_to_non_nullable
+              as String,
+      homeTeamLogo: null == homeTeamLogo
+          ? _value.homeTeamLogo
+          : homeTeamLogo // ignore: cast_nullable_to_non_nullable
+              as String,
+      awayTeamLogo: null == awayTeamLogo
+          ? _value.awayTeamLogo
+          : awayTeamLogo // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }
@@ -261,8 +313,12 @@ class _$MatchModelImpl implements _MatchModel {
       this.result,
       required this.oddsOver,
       required this.oddsUnder,
+      this.oddsDraw = 3.2,
       required this.overUnderLine,
-      this.isSimulated = false});
+      this.isSimulated = false,
+      this.leagueName = '',
+      this.homeTeamLogo = '',
+      this.awayTeamLogo = ''});
 
   factory _$MatchModelImpl.fromJson(Map<String, dynamic> json) =>
       _$$MatchModelImplFromJson(json);
@@ -290,14 +346,26 @@ class _$MatchModelImpl implements _MatchModel {
   @override
   final double oddsUnder;
   @override
+  @JsonKey()
+  final double oddsDraw;
+  @override
   final double overUnderLine;
   @override
   @JsonKey()
   final bool isSimulated;
+  @override
+  @JsonKey()
+  final String leagueName;
+  @override
+  @JsonKey()
+  final String homeTeamLogo;
+  @override
+  @JsonKey()
+  final String awayTeamLogo;
 
   @override
   String toString() {
-    return 'MatchModel(id: $id, homeTeam: $homeTeam, awayTeam: $awayTeam, utcDate: $utcDate, status: $status, scoreHome: $scoreHome, scoreAway: $scoreAway, result: $result, oddsOver: $oddsOver, oddsUnder: $oddsUnder, overUnderLine: $overUnderLine, isSimulated: $isSimulated)';
+    return 'MatchModel(id: $id, homeTeam: $homeTeam, awayTeam: $awayTeam, utcDate: $utcDate, status: $status, scoreHome: $scoreHome, scoreAway: $scoreAway, result: $result, oddsOver: $oddsOver, oddsUnder: $oddsUnder, oddsDraw: $oddsDraw, overUnderLine: $overUnderLine, isSimulated: $isSimulated, leagueName: $leagueName, homeTeamLogo: $homeTeamLogo, awayTeamLogo: $awayTeamLogo)';
   }
 
   @override
@@ -321,10 +389,18 @@ class _$MatchModelImpl implements _MatchModel {
                 other.oddsOver == oddsOver) &&
             (identical(other.oddsUnder, oddsUnder) ||
                 other.oddsUnder == oddsUnder) &&
+            (identical(other.oddsDraw, oddsDraw) ||
+                other.oddsDraw == oddsDraw) &&
             (identical(other.overUnderLine, overUnderLine) ||
                 other.overUnderLine == overUnderLine) &&
             (identical(other.isSimulated, isSimulated) ||
-                other.isSimulated == isSimulated));
+                other.isSimulated == isSimulated) &&
+            (identical(other.leagueName, leagueName) ||
+                other.leagueName == leagueName) &&
+            (identical(other.homeTeamLogo, homeTeamLogo) ||
+                other.homeTeamLogo == homeTeamLogo) &&
+            (identical(other.awayTeamLogo, awayTeamLogo) ||
+                other.awayTeamLogo == awayTeamLogo));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -341,8 +417,12 @@ class _$MatchModelImpl implements _MatchModel {
       result,
       oddsOver,
       oddsUnder,
+      oddsDraw,
       overUnderLine,
-      isSimulated);
+      isSimulated,
+      leagueName,
+      homeTeamLogo,
+      awayTeamLogo);
 
   /// Create a copy of MatchModel
   /// with the given fields replaced by the non-null parameter values.
@@ -372,8 +452,12 @@ abstract class _MatchModel implements MatchModel {
       final MatchResult? result,
       required final double oddsOver,
       required final double oddsUnder,
+      final double oddsDraw,
       required final double overUnderLine,
-      final bool isSimulated}) = _$MatchModelImpl;
+      final bool isSimulated,
+      final String leagueName,
+      final String homeTeamLogo,
+      final String awayTeamLogo}) = _$MatchModelImpl;
 
   factory _MatchModel.fromJson(Map<String, dynamic> json) =
       _$MatchModelImpl.fromJson;
@@ -399,9 +483,17 @@ abstract class _MatchModel implements MatchModel {
   @override
   double get oddsUnder;
   @override
+  double get oddsDraw;
+  @override
   double get overUnderLine;
   @override
   bool get isSimulated;
+  @override
+  String get leagueName;
+  @override
+  String get homeTeamLogo;
+  @override
+  String get awayTeamLogo;
 
   /// Create a copy of MatchModel
   /// with the given fields replaced by the non-null parameter values.

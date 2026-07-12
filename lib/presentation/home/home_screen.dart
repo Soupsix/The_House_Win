@@ -9,7 +9,7 @@ import '../../application/auth/auth_provider.dart';
 import '../../core/router/app_routes.dart';
 import '../../domain/enums/auth_status.dart';
 import '../anti_gambling/loan_trap_screen.dart';
-import '../history/history_screen.dart';
+import '../wallet/wallet_screen.dart';
 import '../matches/matches_screen.dart';
 import '../profile/profile_screen.dart';
 import 'widgets/bottom_nav_bar.dart';
@@ -64,7 +64,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
       const MatchesScreen(),
       if (!isGuest) ...[
-        const HistoryScreen(),
+        const WalletScreen(),
         ProfileScreen(
           onBackToHome: () {
             setState(() {

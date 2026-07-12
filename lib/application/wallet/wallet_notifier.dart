@@ -21,15 +21,9 @@ class WalletNotifier extends StateNotifier<WalletState> {
     super.dispose();
   }
 
-  bool _calculateIsBroke(
-      double balance,
-      double lockedAmount,
-      ) {
+  bool _calculateIsBroke(double balance, double lockedAmount) {
     final availableBalance = balance - lockedAmount;
-    final ratio =
-        availableBalance / AppConstants.initialBalance;
-
-    return ratio <= AppConstants.brokeThreshold;
+    return availableBalance < AppConstants.brokeThreshold;
   }
 
   Future<void> _syncBrokeStatus(
@@ -96,11 +90,28 @@ class WalletNotifier extends StateNotifier<WalletState> {
           .map(TransactionModel.fromFirestore)
           .toList();
 
+      // Tính thống kê từ lịch sử giao dịch
+      double totalBet = 0;
+      double totalWon = 0;
+      double totalLost = 0;
+      for (final tx in transactionHistory) {
+        if (tx.type == 'BET_PLACED' || tx.type == 'BET_LOCKED') {
+          totalBet += tx.amount.abs();
+        } else if (tx.type == 'BET_WIN' || tx.type == 'BET_PAYOUT') {
+          totalWon += tx.amount;
+        } else if (tx.type == 'BET_LOSE') {
+          totalLost += tx.amount.abs();
+        }
+      }
+
       state = state.copyWith(
         balance: balance,
         lockedAmount: lockedAmount,
         isBroke: calculatedIsBroke,
         transactionHistory: transactionHistory,
+        totalBet: totalBet,
+        totalWon: totalWon,
+        totalLost: totalLost,
         isLoading: false,
         errorMessage: null,
       );
@@ -241,6 +252,31 @@ class WalletNotifier extends StateNotifier<WalletState> {
         isLoading: false,
         errorMessage:
         'Khởi động lại ví thất bại: $e',
+      );
+    }
+  }
+
+  // 2.7 - User yêu cầu rút tiền (gửi lên Firestore để Admin duyệt)
+  Future<void> requestWithdrawal(String uid, double amount) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      if (amount > state.availableBalance) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: 'Số tiền rút vượt quá số dư khả dụng',
+        );
+        return;
+      }
+      await _firestoreService.createWithdrawalRequest(
+        uid: uid,
+        amount: amount,
+        method: 'Crypto Wallet',
+      );
+      state = state.copyWith(isLoading: false);
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Gửi yêu cầu thất bại: $e',
       );
     }
   }

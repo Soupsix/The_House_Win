@@ -1,0 +1,141 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && exists(
+          /databases/$(database)/documents/users/$(request.auth.uid)
+        )
+        && get(
+          /databases/$(database)/documents/users/$(request.auth.uid)
+        ).data.isAdmin == true;
+    }
+
+    // ─────────────────────────────────────────────
+    // USERS
+    // ─────────────────────────────────────────────
+    match /users/{userId} {
+      allow read: if isSignedIn()
+        && (request.auth.uid == userId || isAdmin());
+
+      allow create: if isSignedIn()
+        && request.auth.uid == userId;
+
+      // User được sửa hồ sơ của mình nhưng không được tự cấp Admin.
+      allow update: if isAdmin()
+        || (
+          isSignedIn()
+          && request.auth.uid == userId
+          && request.resource.data.isAdmin == resource.data.isAdmin
+        );
+
+      allow delete: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────
+    // WALLETS
+    // ─────────────────────────────────────────────
+    match /wallets/{userId} {
+      allow read, write: if isSignedIn()
+        && (request.auth.uid == userId || isAdmin());
+    }
+
+    // ─────────────────────────────────────────────
+    // MATCHES
+    // ─────────────────────────────────────────────
+    match /matches/{matchId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────
+    // BETS
+    // ─────────────────────────────────────────────
+    match /bets/{betId} {
+      allow read: if isSignedIn()
+        && (
+          request.auth.uid == resource.data.userId
+          || isAdmin()
+        );
+
+      allow create: if isSignedIn()
+        && request.auth.uid == request.resource.data.userId;
+
+      allow update, delete: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────
+    // TRANSACTIONS
+    // ─────────────────────────────────────────────
+    match /transactions/{txId} {
+      allow read: if isSignedIn()
+        && (
+          request.auth.uid == resource.data.userId
+          || isAdmin()
+        );
+
+      // Người chơi tạo giao dịch của mình,
+      // hoặc Admin tạo giao dịch khi duyệt/rút/reset ví.
+      allow create: if isSignedIn()
+        && (
+          request.auth.uid == request.resource.data.userId
+          || isAdmin()
+        );
+
+      allow update, delete: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────
+    // WITHDRAWAL REQUESTS
+    // ─────────────────────────────────────────────
+    match /withdrawal_requests/{requestId} {
+      // Người chơi tạo yêu cầu của chính mình.
+      // Admin được tạo dữ liệu mock để kiểm thử.
+      allow create: if isSignedIn()
+        && (
+          isAdmin()
+          || request.auth.uid == request.resource.data.userId
+        );
+
+      // Người chơi xem yêu cầu của mình, Admin xem tất cả.
+      allow read: if isSignedIn()
+        && (
+          isAdmin()
+          || request.auth.uid == resource.data.userId
+        );
+
+      // Admin duyệt hoặc từ chối.
+      allow update, delete: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────
+    // SIMULATIONS
+    // ─────────────────────────────────────────────
+    match /simulations/{simId} {
+      allow read: if isSignedIn()
+        && (
+          request.auth.uid == resource.data.userId
+          || isAdmin()
+        );
+
+      allow create: if isSignedIn()
+        && request.auth.uid == request.resource.data.userId;
+
+      allow update, delete: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────
+    // ADMIN LOGS
+    // ─────────────────────────────────────────────
+    match /admin_logs/{logId} {
+      allow read, create: if isAdmin();
+      allow update, delete: if false;
+    }
+  }
+}

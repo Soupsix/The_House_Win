@@ -1,5 +1,6 @@
-// Lựa chọn đặt cược: tài (over) hoặc xỉu (under)
+// Lựa chọn đặt cược: tài (over), xỉu (under), hoà (draw)
 enum BetChoice {
   over,
   under,
+  draw,
 }

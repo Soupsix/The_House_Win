@@ -20,26 +20,31 @@ class FootballApiClient {
 
     try {
       final response = await _dio.get(
-        '/matches',
-        options: Options(headers: {'X-Auth-Token': apiKey}),
+        '/fixtures/today',
+        options: Options(headers: {'Authorization': 'Bearer $apiKey'}),
       );
 
-      final matchesJson = response.data['matches'] as List<dynamic>? ?? [];
+      final matchesJson = response.data['data']['matches'] as List<dynamic>? ?? [];
       return matchesJson.map((json) {
-        final id = json['id'].toString();
-        final homeTeam = json['homeTeam']['name'] as String? ?? '';
-        final awayTeam = json['awayTeam']['name'] as String? ?? '';
-        final utcDate = DateTime.parse(json['utcDate'] as String);
+        final id = json['match_id'].toString();
+        final homeTeam = json['home_team']['team_name'] as String? ?? '';
+        final awayTeam = json['away_team']['team_name'] as String? ?? '';
+        
+        final dateUnix = json['date_unix'] as int?;
+        final utcDate = dateUnix != null 
+            ? DateTime.fromMillisecondsSinceEpoch(dateUnix * 1000, isUtc: true)
+            : DateTime.now();
+            
         final statusString = json['status'] as String? ?? '';
 
         final status = switch (statusString) {
-          'FINISHED' => MatchStatus.finished,
-          'IN_PLAY' || 'PAUSED' => MatchStatus.inPlay,
+          'complete' => MatchStatus.finished,
+          'in_progress' => MatchStatus.inPlay,
           _ => MatchStatus.scheduled,
         };
 
-        final scoreHome = json['score']?['fullTime']?['home'] as int? ?? 0;
-        final scoreAway = json['score']?['fullTime']?['away'] as int? ?? 0;
+        final scoreHome = json['score']?['home'] as int? ?? 0;
+        final scoreAway = json['score']?['away'] as int? ?? 0;
 
         return MatchModel(
           id: id,
@@ -49,10 +54,14 @@ class FootballApiClient {
           status: status,
           scoreHome: scoreHome,
           scoreAway: scoreAway,
-          oddsOver: 1.85,
-          oddsUnder: 1.95,
+          oddsOver: (json['odds']?['away_win'] as num?)?.toDouble() ?? 1.85,
+          oddsUnder: (json['odds']?['home_win'] as num?)?.toDouble() ?? 1.95,
+          oddsDraw: (json['odds']?['draw'] as num?)?.toDouble() ?? 3.2,
           overUnderLine: 2.5,
           isSimulated: false,
+          leagueName: json['league']?['competition_name'] as String? ?? '',
+          homeTeamLogo: json['home_team']?['team_logo'] as String? ?? '',
+          awayTeamLogo: json['away_team']?['team_logo'] as String? ?? '',
         );
       }).toList();
     } catch (e) {

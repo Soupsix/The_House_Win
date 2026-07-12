@@ -19,8 +19,12 @@ class MatchModel with _$MatchModel {
     MatchResult? result,
     required double oddsOver,
     required double oddsUnder,
+    @Default(3.2) double oddsDraw,
     required double overUnderLine,
     @Default(false) bool isSimulated,
+    @Default('') String leagueName,
+    @Default('') String homeTeamLogo,
+    @Default('') String awayTeamLogo,
   }) = _MatchModel;
 
   // Factory tạo MatchModel từ JSON
@@ -49,8 +53,12 @@ class MatchModel with _$MatchModel {
           : null,
       oddsOver: (data['oddsOver'] as num?)?.toDouble() ?? 1.85,
       oddsUnder: (data['oddsUnder'] as num?)?.toDouble() ?? 1.95,
+      oddsDraw: (data['oddsDraw'] as num?)?.toDouble() ?? 3.2,
       overUnderLine: (data['overUnderLine'] as num?)?.toDouble() ?? 2.5,
       isSimulated: data['isSimulated'] as bool? ?? false,
+      leagueName: data['leagueName'] as String? ?? '',
+      homeTeamLogo: data['homeTeamLogo'] as String? ?? '',
+      awayTeamLogo: data['awayTeamLogo'] as String? ?? '',
     );
   }
 
@@ -72,8 +80,12 @@ class MatchModel with _$MatchModel {
           : null,
       oddsOver: (map['odds_over'] as num).toDouble(),
       oddsUnder: (map['odds_under'] as num).toDouble(),
+      oddsDraw: (map['odds_draw'] as num?)?.toDouble() ?? 3.2,
       overUnderLine: (map['over_under_line'] as num).toDouble(),
       isSimulated: (map['is_simulated'] as int? ?? 0) == 1,
+      leagueName: map['league_name'] as String? ?? '',
+      homeTeamLogo: map['home_team_logo'] as String? ?? '',
+      awayTeamLogo: map['away_team_logo'] as String? ?? '',
     );
   }
 }
@@ -92,8 +104,12 @@ extension MatchModelStorageExtension on MatchModel {
       'result': result?.name,
       'oddsOver': oddsOver,
       'oddsUnder': oddsUnder,
+      'oddsDraw': oddsDraw,
       'overUnderLine': overUnderLine,
       'isSimulated': isSimulated,
+      'leagueName': leagueName,
+      'homeTeamLogo': homeTeamLogo,
+      'awayTeamLogo': awayTeamLogo,
     };
   }
 
@@ -110,8 +126,12 @@ extension MatchModelStorageExtension on MatchModel {
       'result': result?.name,
       'odds_over': oddsOver,
       'odds_under': oddsUnder,
+      'odds_draw': oddsDraw,
       'over_under_line': overUnderLine,
       'is_simulated': isSimulated ? 1 : 0,
+      'league_name': leagueName,
+      'home_team_logo': homeTeamLogo,
+      'away_team_logo': awayTeamLogo,
       'synced_at': DateTime.now().millisecondsSinceEpoch,
     };
   }

@@ -43,6 +43,7 @@ Map<String, dynamic> _$$BetModelImplToJson(_$BetModelImpl instance) =>
 const _$BetChoiceEnumMap = {
   BetChoice.over: 'over',
   BetChoice.under: 'under',
+  BetChoice.draw: 'draw',
 };
 
 const _$BetStatusEnumMap = {

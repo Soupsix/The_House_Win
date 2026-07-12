@@ -13,6 +13,9 @@ class WalletState with _$WalletState {
     @Default(false) bool isBroke,
     @Default(false) bool isLoading,
     @Default([]) List<TransactionModel> transactionHistory,
+    @Default(0) double totalBet,
+    @Default(0) double totalWon,
+    @Default(0) double totalLost,
     String? errorMessage,
   }) = _WalletState;
 }

@@ -18,8 +18,12 @@ _$MatchModelImpl _$$MatchModelImplFromJson(Map<String, dynamic> json) =>
       result: $enumDecodeNullable(_$MatchResultEnumMap, json['result']),
       oddsOver: (json['oddsOver'] as num).toDouble(),
       oddsUnder: (json['oddsUnder'] as num).toDouble(),
+      oddsDraw: (json['oddsDraw'] as num?)?.toDouble() ?? 3.2,
       overUnderLine: (json['overUnderLine'] as num).toDouble(),
       isSimulated: json['isSimulated'] as bool? ?? false,
+      leagueName: json['leagueName'] as String? ?? '',
+      homeTeamLogo: json['homeTeamLogo'] as String? ?? '',
+      awayTeamLogo: json['awayTeamLogo'] as String? ?? '',
     );
 
 Map<String, dynamic> _$$MatchModelImplToJson(_$MatchModelImpl instance) =>
@@ -34,8 +38,12 @@ Map<String, dynamic> _$$MatchModelImplToJson(_$MatchModelImpl instance) =>
       'result': _$MatchResultEnumMap[instance.result],
       'oddsOver': instance.oddsOver,
       'oddsUnder': instance.oddsUnder,
+      'oddsDraw': instance.oddsDraw,
       'overUnderLine': instance.overUnderLine,
       'isSimulated': instance.isSimulated,
+      'leagueName': instance.leagueName,
+      'homeTeamLogo': instance.homeTeamLogo,
+      'awayTeamLogo': instance.awayTeamLogo,
     };
 
 const _$MatchStatusEnumMap = {

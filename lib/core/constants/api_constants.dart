@@ -12,8 +12,8 @@ class ApiConstants {
   static String get geminiApiKey =>
       dotenv.env['GEMINI_API_KEY'] ?? '';
 
-  // URL gốc của Football Data API v4
-  static const String footballBaseUrl = 'https://api.football-data.org/v4';
+  // URL gốc của Football Data API (footballdata.io)
+  static const String footballBaseUrl = 'https://footballdata.io/api/v1';
 
   // URL gốc của Gemini API v1beta
   static const String geminiBaseUrl =

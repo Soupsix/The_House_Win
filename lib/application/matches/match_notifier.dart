@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite/sqflite.dart';
 import 'match_state.dart';
@@ -18,27 +19,64 @@ class MatchNotifier extends StateNotifier<MatchState> {
   final FirestoreService _firestoreService;
   final DatabaseHelper _dbHelper;
   IBetsSettler? _betsSettler;
+  StreamSubscription<List<MatchModel>>? _matchesSubscription;
 
   MatchNotifier(
     this._apiClient,
     this._firestoreService,
     this._dbHelper,
-  ) : super(const MatchState());
+  ) : super(const MatchState()) {
+    // Bắt đầu lắng nghe Firestore realtime ngay khi khởi tạo
+    _startWatchingMatches();
+  }
+
+  @override
+  void dispose() {
+    _matchesSubscription?.cancel();
+    super.dispose();
+  }
+
+  // Lắng nghe realtime stream từ Firestore
+  void _startWatchingMatches() {
+    _matchesSubscription?.cancel();
+    _matchesSubscription = _firestoreService.streamMatches().listen(
+      (matches) {
+        final scheduled =
+            matches.where((m) => m.status == MatchStatus.scheduled).toList();
+        final live =
+            matches.where((m) => m.status == MatchStatus.inPlay).toList();
+        final finished =
+            matches.where((m) => m.status == MatchStatus.finished).toList();
+
+        state = state.copyWith(
+          scheduledMatches: scheduled,
+          liveMatches: live,
+          finishedMatches: finished,
+          isRefreshing: false,
+        );
+      },
+      onError: (_) {
+        // Nếu không có quyền (guest), bỏ qua — loadFromCache sẽ xử lý
+      },
+    );
+  }
 
   // Gán BetsNotifier để trigger giải quyết cược khi trận đấu kết thúc
   void setBetsSettler(IBetsSettler settler) {
     _betsSettler = settler;
   }
 
+
   // Đồng bộ danh sách trận đấu mới nhất từ Football API về SQLite và cập nhật State
   Future<void> syncFromApi() async {
     state = state.copyWith(isRefreshing: true, errorMessage: null);
     try {
-      final matches = await _apiClient.fetchMatches();
-      
+      final apiMatches = await _apiClient.fetchMatches();
+
+      // Lưu API matches vào SQLite local (không cần Firestore permission)
       final db = await _dbHelper.database;
       final batch = db.batch();
-      for (var match in matches) {
+      for (var match in apiMatches) {
         batch.insert(
           'match_cache',
           match.toSQLite(),
@@ -47,10 +85,39 @@ class MatchNotifier extends StateNotifier<MatchState> {
       }
       await batch.commit(noResult: true);
 
+      // Lấy thêm các trận giả lập từ Firestore (nếu có quyền)
+      List<MatchModel> firestoreMatches = [];
+      try {
+        firestoreMatches = await _firestoreService.getAllMatches();
+      } catch (_) {
+        // Không có quyền đọc Firestore (guest), bỏ qua
+      }
+
+      // Gộp: ưu tiên Firestore (có kèo tỷ lệ chính xác) + API (có tỪ mới)
+      final allMatchIds = <String>{};
+      final allMatches = <MatchModel>[];
+
+      // Thêm Firestore trước
+      for (var m in firestoreMatches) {
+        allMatchIds.add(m.id);
+        allMatches.add(m);
+      }
+      // Thêm API matches không bị trùng
+      for (var m in apiMatches) {
+        if (!allMatchIds.contains(m.id)) {
+          allMatches.add(m);
+        }
+      }
+
       // Phân loại trận đấu theo trạng thái
-      final scheduled = matches.where((m) => m.status == MatchStatus.scheduled).toList();
-      final live = matches.where((m) => m.status == MatchStatus.inPlay).toList();
-      final finished = matches.where((m) => m.status == MatchStatus.finished).toList();
+      final scheduled = allMatches
+          .where((m) => m.status == MatchStatus.scheduled)
+          .toList();
+      final live =
+          allMatches.where((m) => m.status == MatchStatus.inPlay).toList();
+      final finished = allMatches
+          .where((m) => m.status == MatchStatus.finished)
+          .toList();
 
       state = state.copyWith(
         scheduledMatches: scheduled,
@@ -60,21 +127,71 @@ class MatchNotifier extends StateNotifier<MatchState> {
         lastSyncAt: DateTime.now(),
       );
     } catch (e) {
-      // Nếu API lỗi, tải lại dữ liệu từ SQLite cache để hiển thị
+      // Nếu API lỗi, tải lại dữ liệu từ Firestore/SQLite cache
       await loadFromCache();
       state = state.copyWith(
         isRefreshing: false,
-        errorMessage: 'Lỗi đồng bộ API bóng đá: $e. Đã tải dữ liệu từ bộ nhớ tạm.',
+        errorMessage: 'Lỗi đồng bộ API: $e',
       );
     }
   }
 
-  // Tải danh sách trận đấu từ SQLite local cache lên State khi khởi chạy ứng dụng
+  // Admin đồng bộ lịch thi đấu từ API lên Firestore (để tất cả user thấy)
+  Future<int> adminSyncApiToFirestore() async {
+    state = state.copyWith(isRefreshing: true, errorMessage: null);
+    try {
+      final apiMatches = await _apiClient.fetchMatches();
+      int savedCount = 0;
+
+      for (final match in apiMatches) {
+        // Chỉ lưu nếu chưa có trong Firestore (không ghi đè trận giả lập)
+        try {
+          await _firestoreService.saveMatchInFirestore(
+            match.id,
+            match.toFirestore(),
+          );
+          savedCount++;
+        } catch (_) {
+          // Bỏ qua nếu document đã tồn tại hoặc lỗi permission
+        }
+      }
+
+      // Cũng lưu vào SQLite local
+      final db = await _dbHelper.database;
+      final batch = db.batch();
+      for (var match in apiMatches) {
+        batch.insert(
+          'match_cache',
+          match.toSQLite(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+
+      state = state.copyWith(isRefreshing: false);
+      return savedCount;
+    } catch (e) {
+      state = state.copyWith(
+        isRefreshing: false,
+        errorMessage: 'Lỗi đồng bộ lịch lên Firestore: $e',
+      );
+      return 0;
+    }
+  }
+
+  // Tải danh sách trận đấu từ Firestore (và SQLite) lên State khi khởi chạy
   Future<void> loadFromCache() async {
     try {
-      final db = await _dbHelper.database;
-      final List<Map<String, dynamic>> maps = await db.query('match_cache');
-      final matches = maps.map((map) => MatchModel.fromSQLite(map)).toList();
+      // Ưu tiên tải từ Firestore trước để lấy các trận giả lập và tỷ lệ cược mới nhất
+      List<MatchModel> matches;
+      try {
+        matches = await _firestoreService.getAllMatches();
+      } catch (e) {
+        // Fallback về SQLite nếu mất mạng
+        final db = await _dbHelper.database;
+        final List<Map<String, dynamic>> maps = await db.query('match_cache');
+        matches = maps.map((map) => MatchModel.fromSQLite(map)).toList();
+      }
 
       final scheduled = matches.where((m) => m.status == MatchStatus.scheduled).toList();
       final live = matches.where((m) => m.status == MatchStatus.inPlay).toList();
@@ -84,9 +201,11 @@ class MatchNotifier extends StateNotifier<MatchState> {
         scheduledMatches: scheduled,
         liveMatches: live,
         finishedMatches: finished,
+        isRefreshing: false,
       );
     } catch (e) {
       state = state.copyWith(
+        isRefreshing: false,
         errorMessage: 'Lỗi tải cache SQLite: $e',
       );
     }
@@ -169,7 +288,7 @@ class MatchNotifier extends StateNotifier<MatchState> {
     state = state.copyWith(isRefreshing: true, errorMessage: null);
     try {
       final simulated = match.copyWith(isSimulated: true);
-      
+
       // Lưu vào Firestore
       await _firestoreService.saveMatchInFirestore(
         simulated.id,
@@ -184,6 +303,14 @@ class MatchNotifier extends StateNotifier<MatchState> {
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
 
+      // Cập nhật state NGAY LẬP TỨC — không đợi reload
+      final updatedScheduled = [...state.scheduledMatches, simulated];
+      state = state.copyWith(
+        scheduledMatches: updatedScheduled,
+        isRefreshing: false,
+      );
+
+      // Sau đó reload đầy đủ từ Firestore để đảm bảo đồng bộ
       await loadFromCache();
     } catch (e) {
       state = state.copyWith(
