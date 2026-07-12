@@ -6,9 +6,13 @@ import '../../application/admin/admin_state.dart';
 import '../../application/admin/admin_notifier.dart';
 import '../../application/matches/match_provider.dart';
 import '../../application/auth/auth_provider.dart';
+import '../../application/bets/bet_provider.dart';
 import '../../domain/models/match_model.dart';
 import '../../domain/models/user_model.dart';
 import '../../domain/enums/match_status.dart';
+import '../../domain/enums/session_status.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../domain/models/betting_session_model.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -19,7 +23,8 @@ class AdminDashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
-  int _currentTab = 0; // 0: Dashboard, 1: Players, 2: Matches, 3: Logs
+  int _currentTab = 0; // 0: Dashboard, 1: Players, 2: Matches, 3: Tài Xỉu, 4: Logs
+  int _taiXiuSubTab = 0; // 0: Sessions, 1: Bets
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -244,6 +249,392 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
+  // Dialog điều chỉnh kèo Tài Xỉu
+  Future<void> _editSessionOddsDialog(BuildContext context, BettingSessionModel session) async {
+    final oddsOverCtrl = TextEditingController(text: session.oddsOver.toString());
+    final oddsUnderCtrl = TextEditingController(text: session.oddsUnder.toString());
+    final lineCtrl = TextEditingController(text: session.overUnderLine.toString());
+
+    final updated = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1E2020),
+          title: const Text(
+            'Điều chỉnh kèo Tài Xỉu',
+            style: TextStyle(
+              color: Color(0xFFE2E2E2),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: oddsOverCtrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Tỷ lệ cược TÀI (Odds Over)',
+                  labelStyle: TextStyle(color: Colors.white70),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.white24),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF00D4AA)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: oddsUnderCtrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Tỷ lệ cược XỈU (Odds Under)',
+                  labelStyle: TextStyle(color: Colors.white70),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.white24),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF00D4AA)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: lineCtrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Dòng cược (Over Under Line)',
+                  labelStyle: TextStyle(color: Colors.white70),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.white24),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF00D4AA)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Hủy', style: TextStyle(color: Colors.white54)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00D4AA),
+                foregroundColor: Colors.black,
+              ),
+              child: const Text('Cập nhật', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (updated == true) {
+      final oddsOver = double.tryParse(oddsOverCtrl.text);
+      final oddsUnder = double.tryParse(oddsUnderCtrl.text);
+      final line = double.tryParse(lineCtrl.text);
+
+      if (oddsOver == null || oddsUnder == null || line == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Vui lòng nhập số hợp lệ'),
+            backgroundColor: Color(0xFFFC536D),
+          ),
+        );
+        return;
+      }
+
+      try {
+        await ref.read(bettingSessionServiceProvider).updateSessionOdds(
+              sessionId: session.sessionId,
+              oddsOver: oddsOver,
+              oddsUnder: oddsUnder,
+              overUnderLine: line,
+            );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cập nhật kèo Tài Xỉu thành công!'),
+            backgroundColor: Color(0xFF00D4AA),
+          ),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi cập nhật: $e'),
+            backgroundColor: const Color(0xFFFC536D),
+          ),
+        );
+      }
+    }
+  }
+
+  // Active Betting Session UI Card for Admin Panel
+  Widget _buildActiveSessionCard(BuildContext context, WidgetRef ref) {
+    final activeSession = ref.watch(activeSessionProvider);
+    final countdown = ref.watch(countdownProvider);
+    final status = ref.watch(sessionStatusProvider);
+    final user = ref.read(currentUserProvider);
+    final adminId = user?.uid ?? 'admin';
+
+    if (activeSession == null) {
+      return _buildGlassCard(
+        child: const Center(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 24.0),
+            child: Text(
+              'Không có phiên cược Tài Xỉu nào đang chạy.',
+              style: TextStyle(color: Color(0xFFE2BEBF), fontSize: 13),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final isButtonsActive = status == SessionStatus.open || status == SessionStatus.locked;
+    final totalPool = activeSession.totalOverBets + activeSession.totalUnderBets;
+    final overPct = totalPool > 0 ? (activeSession.totalOverBets / totalPool * 100).round() : 50;
+    final underPct = 100 - overPct;
+
+    return _buildGlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Phiên cược đang chạy #${activeSession.sessionNumber}',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFE2E2E2),
+                          fontFamily: 'Inter',
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.edit, size: 16, color: Color(0xFF00D4AA)),
+                        onPressed: () => _editSessionOddsDialog(context, activeSession),
+                        tooltip: 'Điều chỉnh kèo Tài Xỉu',
+                        constraints: const BoxConstraints(),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                      ),
+                      if (activeSession.isAdminOverride) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFC536D),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'ADMIN OVERRIDE',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Đếm ngược: $countdown giây (${status.name.toUpperCase()})',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: status == SessionStatus.locked ? const Color(0xFFFFB347) : const Color(0xFFE2BEBF),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Kèo: ${activeSession.overUnderLine} (Tài: x${activeSession.oddsOver} | Xỉu: x${activeSession.oddsUnder})',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFFA0A0B0),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(
+                width: 36,
+                height: 36,
+                child: Stack(
+                  children: [
+                    CircularProgressIndicator(
+                      value: countdown / 60,
+                      backgroundColor: const Color(0xFF333535),
+                      valueColor: AlwaysStoppedAnimation(
+                        status == SessionStatus.locked ? const Color(0xFFFFB347) : const Color(0xFF00D4AA),
+                      ),
+                      strokeWidth: 3,
+                    ),
+                    Center(
+                      child: Text(
+                        '$countdown',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'TỔNG CƯỢC XỈU',
+                      style: TextStyle(fontSize: 10, color: Color(0xFFA0A0B0), letterSpacing: 0.8),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _formatCurrency(activeSession.totalUnderBets),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF00D4AA)),
+                    ),
+                    Text(
+                      '$underPct%',
+                      style: const TextStyle(fontSize: 10, color: Color(0xFF00D4AA)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const Text(
+                      'TỔNG CƯỢC TÀI',
+                      style: TextStyle(fontSize: 10, color: Color(0xFFA0A0B0), letterSpacing: 0.8),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _formatCurrency(activeSession.totalOverBets),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFFC536D)),
+                    ),
+                    Text(
+                      '$overPct%',
+                      style: const TextStyle(fontSize: 10, color: Color(0xFFFC536D)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: !isButtonsActive
+                      ? null
+                      : () async {
+                          try {
+                            await ref.read(bettingSessionServiceProvider).adminOverrideResult(
+                                  sessionId: activeSession.sessionId,
+                                  result: 'under',
+                                  adminId: adminId,
+                                );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Đã cưỡng chế kết quả XỈU thành công!'),
+                                backgroundColor: Color(0xFF00D4AA),
+                              ),
+                            );
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Lỗi: $e'),
+                                backgroundColor: const Color(0xFFFC536D),
+                              ),
+                            );
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00D4AA).withOpacity(0.1),
+                    foregroundColor: const Color(0xFF00D4AA),
+                    side: const BorderSide(color: Color(0xFF00D4AA)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  icon: const Icon(Icons.arrow_downward, size: 16),
+                  label: const Text(
+                    'Force XỈU',
+                    style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: !isButtonsActive
+                      ? null
+                      : () async {
+                          try {
+                            await ref.read(bettingSessionServiceProvider).adminOverrideResult(
+                                  sessionId: activeSession.sessionId,
+                                  result: 'over',
+                                  adminId: adminId,
+                                );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Đã cưỡng chế kết quả TÀI thành công!'),
+                                backgroundColor: Color(0xFFFC536D),
+                              ),
+                            );
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Lỗi: $e'),
+                                backgroundColor: const Color(0xFFFC536D),
+                              ),
+                            );
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFC536D).withOpacity(0.1),
+                    foregroundColor: const Color(0xFFFC536D),
+                    side: const BorderSide(color: Color(0xFFFC536D)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  icon: const Icon(Icons.arrow_upward, size: 16),
+                  label: const Text(
+                    'Force TÀI',
+                    style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final adminState = ref.watch(adminProvider);
@@ -331,39 +722,52 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 border:
                     Border(top: BorderSide(color: Color(0xFF333535), width: 1)),
               ),
-              child: BottomNavigationBar(
-                currentIndex: _currentTab,
-                backgroundColor: const Color(0xFF1E2020),
-                selectedItemColor: const Color(0xFFFFB2B7),
-                unselectedItemColor: const Color(0xFFE2BEBF).withOpacity(0.6),
-                type: BottomNavigationBarType.fixed,
-                onTap: (index) {
-                  setState(() {
-                    _currentTab = index;
-                  });
-                },
-                items: const [
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.dashboard_outlined),
-                    activeIcon: Icon(Icons.dashboard),
-                    label: 'Tổng quan',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.group_outlined),
-                    activeIcon: Icon(Icons.group),
-                    label: 'Người chơi',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.sports_esports_outlined),
-                    activeIcon: Icon(Icons.sports_esports),
-                    label: 'Trận đấu',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.terminal_outlined),
-                    activeIcon: Icon(Icons.terminal),
-                    label: 'Nhật ký',
-                  ),
-                ],
+              child: MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: TextScaler.noScaling,
+                ),
+                child: BottomNavigationBar(
+                  currentIndex: _currentTab,
+                  backgroundColor: const Color(0xFF1E2020),
+                  selectedItemColor: const Color(0xFFFFB2B7),
+                  unselectedItemColor: const Color(0xFFE2BEBF).withOpacity(0.6),
+                  type: BottomNavigationBarType.fixed,
+                  selectedFontSize: 12,
+                  unselectedFontSize: 10,
+                  iconSize: 22,
+                  onTap: (index) {
+                    setState(() {
+                      _currentTab = index;
+                    });
+                  },
+                  items: const [
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.dashboard_outlined),
+                      activeIcon: Icon(Icons.dashboard),
+                      label: 'Tổng quan',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.group_outlined),
+                      activeIcon: Icon(Icons.group),
+                      label: 'Người chơi',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.sports_esports_outlined),
+                      activeIcon: Icon(Icons.sports_esports),
+                      label: 'Trận đấu',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.casino_outlined),
+                      activeIcon: Icon(Icons.casino),
+                      label: 'Tài Xỉu',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.terminal_outlined),
+                      activeIcon: Icon(Icons.terminal),
+                      label: 'Nhật ký',
+                    ),
+                  ],
+                ),
               ),
             ),
     );
@@ -429,9 +833,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   index: 2,
                 ),
                 _buildSidebarItem(
+                  icon: Icons.casino,
+                  label: 'Cược Tài Xỉu',
+                  index: 3,
+                ),
+                _buildSidebarItem(
                   icon: Icons.terminal,
                   label: 'System Logs',
-                  index: 3,
+                  index: 4,
                 ),
               ],
             ),
@@ -675,6 +1084,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           scheduledMatches,
         );
       case 3:
+        return _buildTaiXiuTab(adminState, adminNotifier);
+      case 4:
         return _buildLogsTab(adminState);
       default:
         return _buildDashboardTab(
@@ -772,6 +1183,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           ),
           const SizedBox(height: 24),
         ],
+
+        // Active Betting Session Card
+        _buildActiveSessionCard(context, ref),
+        const SizedBox(height: 24),
 
         // Middle Section: Withdrawal Requests
         _buildGlassCard(
@@ -1111,7 +1526,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   TextButton(
                     onPressed: () {
                       setState(() {
-                        _currentTab = 3; // Switch to logs tab
+                        _currentTab = 4; // Switch to logs tab
                       });
                     },
                     child: const Text('Xem nhật ký',
@@ -3378,6 +3793,646 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  // ==========================================
+  // VIEW: TAB 3 - TÀI XỈU VIEW
+  // ==========================================
+  Widget _buildTaiXiuTab(AdminState adminState, AdminNotifier adminNotifier) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Quản lý Cược Tài Xỉu',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFFE2E2E2),
+                fontFamily: 'Inter',
+              ),
+            ),
+            Row(
+              children: [
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _taiXiuSubTab = 0;
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _taiXiuSubTab == 0
+                        ? const Color(0xFFFFB2B7)
+                        : const Color(0xFF1E2020),
+                    foregroundColor: _taiXiuSubTab == 0
+                        ? Colors.black
+                        : const Color(0xFFE2E2E2),
+                    side: const BorderSide(color: Color(0xFF333535)),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  child: const Text('Lịch sử Phiên', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _taiXiuSubTab = 1;
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _taiXiuSubTab == 1
+                        ? const Color(0xFFFFB2B7)
+                        : const Color(0xFF1E2020),
+                    foregroundColor: _taiXiuSubTab == 1
+                        ? Colors.black
+                        : const Color(0xFFE2E2E2),
+                    side: const BorderSide(color: Color(0xFF333535)),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  child: const Text('Đơn cược', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _taiXiuSubTab == 0
+            ? _buildTaiXiuSessionsSubTab()
+            : _buildTaiXiuBetsSubTab(),
+      ],
+    );
+  }
+
+  // Sub-Tab 1: Lịch sử và trạng thái các phiên cược
+  Widget _buildTaiXiuSessionsSubTab() {
+    final bettingService = ref.read(bettingSessionServiceProvider);
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('betting_sessions')
+          .orderBy('sessionNumber', descending: true)
+          .limit(30)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Center(
+            child: Text(
+              'Chưa có phiên cược nào được tạo.',
+              style: TextStyle(color: Color(0xFFE2BEBF)),
+            ),
+          );
+        }
+
+        return ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: snapshot.data!.docs.length,
+          itemBuilder: (context, index) {
+            final doc = snapshot.data!.docs[index];
+            final sessionId = doc.id;
+            final data = doc.data() as Map<String, dynamic>;
+            final sessionNumber = data['sessionNumber'] as int? ?? 0;
+            final statusStr = data['status'] as String? ?? 'settled';
+            final result = data['result'] as String? ?? 'none';
+            final oddsOver = (data['oddsOver'] as num? ?? 1.85).toDouble();
+            final oddsUnder = (data['oddsUnder'] as num? ?? 1.95).toDouble();
+            final line = (data['overUnderLine'] as num? ?? 2.5).toDouble();
+            final totalOver = (data['totalOverBets'] as num? ?? 0).toDouble();
+            final totalUnder = (data['totalUnderBets'] as num? ?? 0).toDouble();
+            final startedAtVal = data['startedAt'];
+            final startedAt = startedAtVal is Timestamp
+                ? startedAtVal.toDate()
+                : DateTime.now();
+
+            final displayTime = DateFormat('HH:mm:ss dd/MM').format(startedAt);
+
+            Color statusColor = const Color(0xFF00D4AA);
+            if (statusStr == 'locked') {
+              statusColor = const Color(0xFFFFB347);
+            } else if (statusStr == 'settled') {
+              statusColor = const Color(0xFFA0A0B0);
+            }
+
+            return _buildGlassCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Phiên #$sessionNumber (Bắt đầu: $displayTime)',
+                            style: const TextStyle(
+                              color: Color(0xFFE2E2E2),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'ID: $sessionId',
+                            style: const TextStyle(
+                              color: Colors.white38,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: statusColor.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: statusColor.withOpacity(0.4)),
+                        ),
+                        child: Text(
+                          statusStr.toUpperCase(),
+                          style: TextStyle(
+                            color: statusColor,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildMetricCol(
+                          title: 'KÈO & ODDS',
+                          value: 'Kèo $line\nTài x$oddsOver | Xỉu x$oddsUnder',
+                        ),
+                      ),
+                      Expanded(
+                        child: _buildMetricCol(
+                          title: 'TỔNG CƯỢC TÀI',
+                          value: _formatCurrency(totalOver),
+                          valColor: const Color(0xFFFC536D),
+                        ),
+                      ),
+                      Expanded(
+                        child: _buildMetricCol(
+                          title: 'TỔNG CƯỢC XỈU',
+                          value: _formatCurrency(totalUnder),
+                          valColor: const Color(0xFF00D4AA),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Text(
+                        'Kết quả: ',
+                        style: TextStyle(color: Colors.white54, fontSize: 12),
+                      ),
+                      Text(
+                        result == 'none' ? 'Chưa có' : result.toUpperCase(),
+                        style: TextStyle(
+                          color: result == 'over'
+                              ? const Color(0xFFFC536D)
+                              : (result == 'under'
+                                  ? const Color(0xFF00D4AA)
+                                  : Colors.white70),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                      if (data['isAdminOverride'] == true) ...[
+                        const SizedBox(width: 8),
+                        const Icon(Icons.star, color: Color(0xFFFFB347), size: 12),
+                        const Text(
+                          ' (Admin Force)',
+                          style: TextStyle(color: Color(0xFFFFB347), fontSize: 10),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      if (statusStr != 'settled') ...[
+                        IconButton(
+                          icon: const Icon(Icons.edit, color: Color(0xFF00D4AA), size: 20),
+                          tooltip: 'Sửa kèo odds',
+                          onPressed: () {
+                            final sessionModel = BettingSessionModel.fromFirestore(doc);
+                            _editSessionOddsDialog(context, sessionModel);
+                          },
+                        ),
+                        const SizedBox(width: 12),
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            try {
+                              await bettingService.adminOverrideResult(
+                                sessionId: sessionId,
+                                result: 'under',
+                                adminId: 'admin',
+                              );
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Force XỈU thành công!')),
+                              );
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Lỗi: $e')),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.arrow_downward, size: 14),
+                          label: const Text('Force XỈU', style: TextStyle(fontSize: 11)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF00D4AA).withOpacity(0.12),
+                            foregroundColor: const Color(0xFF00D4AA),
+                            side: const BorderSide(color: Color(0xFF00D4AA)),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            try {
+                              await bettingService.adminOverrideResult(
+                                sessionId: sessionId,
+                                result: 'over',
+                                adminId: 'admin',
+                              );
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Force TÀI thành công!')),
+                              );
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Lỗi: $e')),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.arrow_upward, size: 14),
+                          label: const Text('Force TÀI', style: TextStyle(fontSize: 11)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFC536D).withOpacity(0.12),
+                            foregroundColor: const Color(0xFFFC536D),
+                            side: const BorderSide(color: Color(0xFFFC536D)),
+                          ),
+                        ),
+                      ] else ...[
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            _showAdminSettleOverrideDialog(context, sessionId, result);
+                          },
+                          icon: const Icon(Icons.refresh, size: 14),
+                          label: const Text('Sửa kết quả phiên', style: TextStyle(fontSize: 11)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFFB2B7).withOpacity(0.12),
+                            foregroundColor: const Color(0xFFFFB2B7),
+                            side: const BorderSide(color: Color(0xFFFFB2B7)),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Sửa kết quả cược của phiên cược đã kết toán (tính lại ví và trạng thái)
+  Future<void> _showAdminSettleOverrideDialog(BuildContext context, String sessionId, String currentResult) async {
+    final newResult = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1E2020),
+          title: const Text(
+            'Sửa kết quả phiên cược',
+            style: TextStyle(color: Color(0xFFE2E2E2), fontWeight: FontWeight.bold),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Phiên cược đã kết toán với kết quả: ${currentResult.toUpperCase()}',
+                style: const TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Lưu ý: Thay đổi kết quả sẽ tự động đảo trạng thái Won/Lost của toàn bộ đơn cược và hoàn trả/khấu trừ tiền ví của người chơi!',
+                style: TextStyle(color: Color(0xFFFFB347), fontSize: 12),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Hủy', style: TextStyle(color: Colors.white54)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop('under'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00D4AA),
+                foregroundColor: Colors.black,
+              ),
+              child: const Text('Sửa thành XỈU'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop('over'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFC536D),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Sửa thành TÀI'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (newResult != null && newResult != currentResult) {
+      try {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => const Center(child: CircularProgressIndicator()),
+        );
+        
+        await ref.read(bettingSessionServiceProvider).adminOverrideSettleResult(
+          sessionId: sessionId,
+          newResult: newResult,
+        );
+        
+        Navigator.of(context).pop(); // Dismiss progress indicator
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Đã cập nhật lại kết quả phiên thành ${newResult.toUpperCase()} và điều chỉnh ví thành công!'),
+            backgroundColor: const Color(0xFF00D4AA),
+          ),
+        );
+      } catch (e) {
+        Navigator.of(context).pop(); // Dismiss progress indicator
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: $e'),
+            backgroundColor: const Color(0xFFFC536D),
+          ),
+        );
+      }
+    }
+  }
+
+  // Sub-Tab 2: Danh sách đơn cược của tất cả người chơi
+  Widget _buildTaiXiuBetsSubTab() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('bets')
+          .orderBy('createdAt', descending: true)
+          .limit(50)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Center(
+            child: Text(
+              'Chưa có đơn cược nào được đặt.',
+              style: TextStyle(color: Color(0xFFE2BEBF)),
+            ),
+          );
+        }
+
+        return ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: snapshot.data!.docs.length,
+          itemBuilder: (context, index) {
+            final doc = snapshot.data!.docs[index];
+            final betId = doc.id;
+            final data = doc.data() as Map<String, dynamic>;
+            final userId = data['userId'] as String? ?? 'unknown';
+            final sessionNum = data['sessionNumber'] as int? ?? 0;
+            final choice = data['choice'] as String? ?? 'over';
+            final amount = (data['amount'] as num? ?? 0.0).toDouble();
+            final odds = (data['oddsAtTime'] as num? ?? 1.0).toDouble();
+            final status = data['status'] as String? ?? 'pending';
+            final createdAtVal = data['createdAt'];
+            final createdAt = createdAtVal is Timestamp
+                ? createdAtVal.toDate()
+                : DateTime.now();
+
+            final displayTime = DateFormat('HH:mm:ss dd/MM').format(createdAt);
+
+            Color statusColor = const Color(0xFFFFB347);
+            if (status == 'won') {
+              statusColor = const Color(0xFF00D4AA);
+            } else if (status == 'lost') {
+              statusColor = const Color(0xFFFC536D);
+            } else if (status == 'push') {
+              statusColor = const Color(0xFFA0A0B0);
+            }
+
+            return _buildGlassCard(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'Đơn cược: ${choice.toUpperCase()}',
+                              style: TextStyle(
+                                color: choice == 'over'
+                                    ? const Color(0xFFFC536D)
+                                    : const Color(0xFF00D4AA),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: statusColor.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: statusColor.withOpacity(0.4)),
+                              ),
+                              child: Text(
+                                status.toUpperCase(),
+                                style: TextStyle(
+                                  color: statusColor,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Cược: ${_formatCurrency(amount)} | Odds: x$odds (Thắng nhận: ${_formatCurrency(amount * odds)})',
+                          style: const TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Phiên cược: #$sessionNum | Người chơi ID: $userId',
+                          style: const TextStyle(color: Colors.white38, fontSize: 10),
+                        ),
+                        Text(
+                          'Thời gian: $displayTime | ID: $betId',
+                          style: const TextStyle(color: Colors.white38, fontSize: 10),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.edit_note, color: Color(0xFFFFB2B7)),
+                    tooltip: 'Sửa đơn cược',
+                    onPressed: () {
+                      _showAdminEditBetDialog(context, betId, status);
+                    },
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Sửa trạng thái một đơn cược cụ thể
+  Future<void> _showAdminEditBetDialog(BuildContext context, String betId, String currentStatus) async {
+    final newStatus = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1E2020),
+          title: const Text(
+            'Sửa trạng thái đơn cược',
+            style: TextStyle(color: Color(0xFFE2E2E2), fontWeight: FontWeight.bold),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Đơn cược hiện tại có trạng thái: ${currentStatus.toUpperCase()}',
+                style: const TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Lưu ý: Thay đổi trạng thái đơn cược sẽ tự động điều chỉnh số dư ví của tài khoản người chơi tương ứng!',
+                style: TextStyle(color: Color(0xFFFFB347), fontSize: 12),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Hủy', style: TextStyle(color: Colors.white54)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop('won'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00D4AA),
+                foregroundColor: Colors.black,
+              ),
+              child: const Text('Thắng (WON)'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop('lost'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFC536D),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Thua (LOST)'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop('push'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFA0A0B0),
+                foregroundColor: Colors.black,
+              ),
+              child: const Text('Hòa (PUSH)'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (newStatus != null && newStatus != currentStatus) {
+      try {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => const Center(child: CircularProgressIndicator()),
+        );
+
+        await ref.read(bettingSessionServiceProvider).adminUpdateBetStatus(
+          betId: betId,
+          newStatus: newStatus,
+        );
+
+        Navigator.of(context).pop(); // Dismiss progress indicator
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cập nhật trạng thái đơn cược sang ${newStatus.toUpperCase()} thành công!'),
+            backgroundColor: const Color(0xFF00D4AA),
+          ),
+        );
+      } catch (e) {
+        Navigator.of(context).pop(); // Dismiss progress indicator
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: $e'),
+            backgroundColor: const Color(0xFFFC536D),
+          ),
+        );
+      }
+    }
+  }
+
+  // Widget hiển thị cột chỉ số phụ trợ
+  Widget _buildMetricCol({
+    required String title,
+    required String value,
+    Color? valColor,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white38,
+            fontSize: 10,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            color: valColor ?? const Color(0xFFE2E2E2),
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
+        ),
+      ],
     );
   }
 }

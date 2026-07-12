@@ -33,11 +33,12 @@ class BottomNavBar extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             _buildNavItem(0, Icons.home, 'Trang chủ'),
-            _buildNavItem(1, Icons.sports_esports, 'Sàn đấu'),
-            _buildNavItem(2, Icons.emoji_events, 'Giải đấu'),
+            _buildNavItem(1, Icons.stadium, 'Sàn đấu'),
             if (!isGuest) ...[
-              _buildNavItem(3, Icons.account_balance_wallet, 'Ví'),
-              _buildNavItem(4, Icons.person, 'Hồ sơ'),
+              _buildNavItem(2, Icons.emoji_events, 'Giải đấu'),
+              _buildNavItem(3, Icons.receipt_long, 'Lịch sử'),
+              _buildNavItem(4, Icons.account_balance_wallet, 'Ví'),
+              _buildNavItem(5, Icons.person, 'Hồ sơ'),
             ],
           ],
         ),

@@ -1,30 +1,195 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
 import 'bet_state.dart';
 import '../wallet/wallet_notifier.dart';
-import '../wallet/wallet_state.dart'; // để truy cập getter availableBalance
+import '../wallet/wallet_state.dart';
 import '../matches/match_notifier.dart'; // để implement IBetsSettler
 import '../../data/firebase/firestore_service.dart';
+import '../../data/firebase/betting_session_service.dart';
+import '../../core/services/session_timer_service.dart';
 import '../../data/local/database_helper.dart';
 import '../../domain/models/bet_model.dart';
+import '../../domain/models/betting_session_model.dart';
+import '../../domain/models/transaction_model.dart';
 import '../../domain/enums/bet_choice.dart';
 import '../../domain/enums/bet_status.dart';
 import '../../domain/enums/match_status.dart';
+import '../../domain/enums/session_status.dart';
 
-// Notifier quản lý các đơn đặt cược của người dùng
+// Notifier quản lý các đơn đặt cược của người dùng (cả bóng đá và Tài Xỉu)
 class BetNotifier extends StateNotifier<BetState> implements IBetsSettler {
   final FirestoreService _firestoreService;
   final WalletNotifier _walletNotifier;
   final DatabaseHelper _dbHelper;
+  final BettingSessionService _sessionService;
+  final SessionTimerService _timerService;
+
+  StreamSubscription? _activeSessionSub;
+  StreamSubscription? _countdownSub;
+  StreamSubscription? _statusSub;
+  StreamSubscription? _sessionBetsSub;
+  StreamSubscription? _userPendingBetsSub;
 
   BetNotifier(
     this._firestoreService,
     this._walletNotifier,
     this._dbHelper,
+    this._sessionService,
+    this._timerService,
   ) : super(const BetState());
 
-  // Khởi tạo cược nháp trong bộ nhớ tạm (chưa lưu Firestore)
+  @override
+  void dispose() {
+    _activeSessionSub?.cancel();
+    _countdownSub?.cancel();
+    _statusSub?.cancel();
+    _sessionBetsSub?.cancel();
+    _userPendingBetsSub?.cancel();
+    super.dispose();
+  }
+
+  // Khởi động lắng nghe active session và countdown từ SessionTimerService
+  Future<void> initialize(String userId) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+
+    // Tải cược cũ của bóng đá
+    await loadBets(userId);
+
+    // Lắng nghe đếm ngược từ timer service
+    _countdownSub?.cancel();
+    _countdownSub = _timerService.countdown.listen((seconds) {
+      state = state.copyWith(countdown: seconds);
+    });
+
+    // Lắng nghe trạng thái phiên từ timer service
+    _statusSub?.cancel();
+    _statusSub = _timerService.sessionStatus.listen((status) {
+      state = state.copyWith(sessionStatus: status);
+    });
+
+    // Lắng nghe phiên active từ Firestore
+    _activeSessionSub?.cancel();
+    _activeSessionSub = _sessionService.watchActiveSession().listen((session) {
+      state = state.copyWith(activeSession: session);
+      if (session != null) {
+        _subscribeToSessionBets(session.sessionId, userId);
+      }
+    });
+
+    // Lắng nghe cược pending của user
+    _userPendingBetsSub?.cancel();
+    _userPendingBetsSub = _sessionService.watchUserPendingBets(userId).listen((bets) {
+      // Tách cược bóng đá (không có sessionId) và cược Tài Xỉu (có sessionId)
+      final footballPending = bets.where((b) => b.sessionId == null).toList();
+      state = state.copyWith(pendingBets: footballPending);
+    });
+
+    state = state.copyWith(isLoading: false);
+  }
+
+  // Lắng nghe cược của user trong phiên hiện tại
+  void _subscribeToSessionBets(String sessionId, String userId) {
+    _sessionBetsSub?.cancel();
+    _sessionBetsSub = _sessionService.watchSessionBets(sessionId).listen((bets) {
+      final userSessionBets = bets.where((b) => b.userId == userId).toList();
+      
+      // Kiểm tra xem có cược nào vừa được kết toán không để trigger thông báo kết quả
+      _checkAndNotifySettledBets(userSessionBets);
+
+      state = state.copyWith(currentSessionBets: userSessionBets);
+    });
+  }
+
+  // So sánh trạng thái cũ và mới để kích hoạt thông báo kết quả thắng/thua
+  void _checkAndNotifySettledBets(List<BetModel> updatedBets) {
+    for (final updated in updatedBets) {
+      final previous = state.currentSessionBets.firstWhere(
+        (b) => b.id == updated.id,
+        orElse: () => updated.copyWith(status: BetStatus.pending),
+      );
+
+      if (previous.status == BetStatus.pending && updated.status != BetStatus.pending) {
+        // Đã được giải quyết từ pending thành won/lost/push
+        _onSessionSettled(updated);
+      }
+    }
+  }
+
+  // Xử lý khi đơn cược Tài Xỉu được kết toán
+  void _onSessionSettled(BetModel bet) async {
+    // 1. Tải lại ví để đồng bộ số dư mới
+    await _walletNotifier.loadWallet(bet.userId);
+
+    // 2. Lưu lịch sử vào SQLite local
+    try {
+      final db = await _dbHelper.database;
+      await db.insert(
+        'bet_history',
+        bet.toSQLite(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } catch (_) {}
+
+    // 3. Gửi thông báo kết quả lên UI qua successMessage
+    if (bet.status == BetStatus.won) {
+      final winAmount = _walletNotifier.state.transactionHistory.firstWhere(
+        (t) => t.referenceId == bet.id,
+        orElse: () => TransactionModel(
+          id: '',
+          userId: bet.userId,
+          type: 'BET_WIN',
+          amount: bet.amount * bet.oddsAtTime,
+          referenceId: bet.id,
+          createdAt: DateTime.now(),
+        ),
+      ).amount;
+      state = state.copyWith(
+        successMessage: 'Chúc mừng! Bạn đã thắng $winAmount SC từ phiên #${bet.sessionNumber}',
+      );
+    } else if (bet.status == BetStatus.lost) {
+      state = state.copyWith(
+        errorMessage: 'Rất tiếc! Bạn đã thua đơn cược phiên #${bet.sessionNumber}',
+      );
+    }
+  }
+
+  // Tạo draft cược Tài Xỉu
+  void draftSessionBet(String choice, double amount) {
+    state = state.copyWith(errorMessage: null, successMessage: null);
+
+    if (amount <= 0) {
+      state = state.copyWith(errorMessage: 'Số tiền đặt cược phải lớn hơn 0');
+      return;
+    }
+
+    final availableBalance = _walletNotifier.state.availableBalance;
+    if (amount > availableBalance) {
+      state = state.copyWith(errorMessage: 'Số dư khả dụng trong ví không đủ');
+      return;
+    }
+
+    final activeSession = state.activeSession;
+    if (activeSession == null || activeSession.status != SessionStatus.open) {
+      state = state.copyWith(errorMessage: 'Phiên cược đã khoá, không thể đặt cược');
+      return;
+    }
+
+    final odds = choice == 'over' ? activeSession.oddsOver : activeSession.oddsUnder;
+
+    state = state.copyWith(
+      currentDraft: BetDraftModel(
+        sessionId: activeSession.sessionId,
+        choice: choice == 'over' ? BetChoice.over : BetChoice.under,
+        amount: amount,
+        oddsAtTime: odds,
+        potentialPayout: amount * odds,
+      ),
+    );
+  }
+
+  // Tạo draft cược bóng đá
   void draftBet(String matchId, BetChoice choice, double amount, double odds) {
     state = state.copyWith(errorMessage: null, successMessage: null);
 
@@ -56,15 +221,11 @@ class BetNotifier extends StateNotifier<BetState> implements IBetsSettler {
     final draft = state.currentDraft;
 
     if (draft == null) {
-      state = state.copyWith(
-        errorMessage: 'Không có cược nháp nào để xác nhận',
-      );
+      state = state.copyWith(errorMessage: 'Không có cược nháp nào để xác nhận');
       return;
     }
 
-    if (state.isSubmitting) {
-      return;
-    }
+    if (state.isSubmitting) return;
 
     state = state.copyWith(
       isSubmitting: true,
@@ -73,103 +234,79 @@ class BetNotifier extends StateNotifier<BetState> implements IBetsSettler {
     );
 
     try {
-      // 1. Đọc trận đấu trước khi trừ tiền.
-      final matchDoc = await _firestoreService.getMatchDocument(
-        draft.matchId,
-      );
-
-      if (!matchDoc.exists || matchDoc.data() == null) {
-        throw Exception('Trận đấu không tồn tại');
-      }
-
-      final matchData = matchDoc.data()!;
-
-      final isBettingLocked = matchData['isBettingLocked'] as bool? ?? false;
-
-      final matchStatus = matchData['status']?.toString() ?? 'scheduled';
-
-      // 2. Chặn nếu Admin đã khóa cược.
-      if (isBettingLocked) {
-        state = state.copyWith(
-          isSubmitting: false,
-          errorMessage:
-              'Trận đấu đã bị Admin khóa cược. Bạn không thể đặt cược.',
+      if (draft.sessionId != null) {
+        // --- XỬ LÝ CƯỢC TÀI XỈU ---
+        await _sessionService.placeBet(
+          sessionId: draft.sessionId!,
+          userId: uid,
+          choice: draft.choice.name,
+          amount: draft.amount,
+          oddsAtTime: draft.oddsAtTime,
         );
-        return;
-      }
 
-      // 3. Chỉ cho cược trận chưa kết thúc.
-      if (matchStatus == 'finished') {
+        // Đồng bộ lại ví ảo sau khi cược thành công
+        await _walletNotifier.loadWallet(uid);
+
         state = state.copyWith(
+          currentDraft: null,
           isSubmitting: false,
-          errorMessage: 'Trận đấu đã kết thúc. Không thể đặt cược.',
+          successMessage: 'Đặt cược Tài Xỉu thành công!',
         );
-        return;
-      }
+      } else if (draft.matchId != null) {
+        // --- XỬ LÝ CƯỢC BÓNG ĐÁ ---
+        final matchDoc = await _firestoreService.getMatchDocument(draft.matchId!);
+        if (!matchDoc.exists || matchDoc.data() == null) {
+          throw Exception('Trận đấu không tồn tại');
+        }
 
-      // 4. Kiểm tra lại số dư ngay trước khi xác nhận.
-      final availableBalance = _walletNotifier.state.availableBalance;
+        final matchData = matchDoc.data()!;
+        final isBettingLocked = matchData['isBettingLocked'] as bool? ?? false;
+        final matchStatus = matchData['status']?.toString() ?? 'scheduled';
 
-      if (draft.amount <= 0) {
+        if (isBettingLocked) {
+          throw Exception('Trận đấu đã bị Admin khóa cược.');
+        }
+
+        if (matchStatus == 'finished') {
+          throw Exception('Trận đấu đã kết thúc.');
+        }
+
+        final betId = 'bet_${DateTime.now().millisecondsSinceEpoch}_$uid';
+        final homeTeam = matchData['homeTeam']?.toString() ?? '';
+        final awayTeam = matchData['awayTeam']?.toString() ?? '';
+
+        // Trừ tiền thông qua walletNotifier
+        await _walletNotifier.deductBet(uid, draft.amount, betId);
+
+        if (_walletNotifier.state.errorMessage != null) {
+          throw Exception(_walletNotifier.state.errorMessage);
+        }
+
+        // Lưu cược vào Firestore
+        await _firestoreService.saveBetInFirestore(
+          betId,
+          {
+            'userId': uid,
+            'matchId': draft.matchId,
+            'homeTeam': homeTeam,
+            'awayTeam': awayTeam,
+            'choice': draft.choice.name,
+            'amount': draft.amount,
+            'oddsAtTime': draft.oddsAtTime,
+            'payout': 0.0,
+            'status': BetStatus.pending.name,
+            'createdAt': FieldValue.serverTimestamp(),
+          },
+        );
+
         state = state.copyWith(
+          currentDraft: null,
           isSubmitting: false,
-          errorMessage: 'Số tiền đặt cược phải lớn hơn 0.',
+          successMessage: 'Đặt cược bóng đá thành công!',
         );
-        return;
+
+        await loadBets(uid);
       }
-
-      if (draft.amount > availableBalance) {
-        state = state.copyWith(
-          isSubmitting: false,
-          errorMessage: 'Số dư khả dụng trong ví không đủ.',
-        );
-        return;
-      }
-
-      final betId = 'bet_${DateTime.now().millisecondsSinceEpoch}_$uid';
-
-      final homeTeam = matchData['homeTeam']?.toString() ?? '';
-
-      final awayTeam = matchData['awayTeam']?.toString() ?? '';
-
-      // 5. Trừ và khóa tiền cược sau khi đã kiểm tra trận.
-      await _walletNotifier.deductBet(
-        uid,
-        draft.amount,
-        betId,
-      );
-
-      // WalletNotifier có thể lưu lỗi mà không throw exception.
-      final walletError = _walletNotifier.state.errorMessage;
-
-      if (walletError != null) {
-        throw Exception(walletError);
-      }
-
-      // 6. Lưu cược vào Firestore.
-      await _firestoreService.saveBetInFirestore(
-        betId,
-        {
-          'userId': uid,
-          'matchId': draft.matchId,
-          'homeTeam': homeTeam,
-          'awayTeam': awayTeam,
-          'choice': draft.choice.name,
-          'amount': draft.amount,
-          'oddsAtTime': draft.oddsAtTime,
-          'payout': 0.0,
-          'status': BetStatus.pending.name,
-          'createdAt': FieldValue.serverTimestamp(),
-        },
-      );
-
-      state = state.copyWith(
-        currentDraft: null,
-        isSubmitting: false,
-        successMessage: 'Đặt cược thành công!',
-      );
-
-      await loadBets(uid);
     } catch (e) {
       state = state.copyWith(
         isSubmitting: false,
@@ -181,20 +318,35 @@ class BetNotifier extends StateNotifier<BetState> implements IBetsSettler {
   // Hủy bỏ đơn cược nháp hiện tại
   void cancelDraft() {
     state = state.copyWith(
-        currentDraft: null, errorMessage: null, successMessage: null);
+      currentDraft: null,
+      errorMessage: null,
+      successMessage: null,
+    );
   }
 
   // Tải danh sách các cược pending và cược đã giải quyết của người dùng
   Future<void> loadBets(String uid) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      final pendingSnap = await _firestoreService.getPendingBets(uid);
-      final settledSnap = await _firestoreService.getSettledBetsLimit50(uid);
+      // Dùng truy vấn đơn giản chỉ lọc userId để không yêu cầu composite index
+      final snap = await FirebaseFirestore.instance
+          .collection('bets')
+          .where('userId', isEqualTo: uid)
+          .limit(100)
+          .get();
 
-      final pendingBets =
-          pendingSnap.docs.map((doc) => BetModel.fromFirestore(doc)).toList();
-      final settledBets =
-          settledSnap.docs.map((doc) => BetModel.fromFirestore(doc)).toList();
+      final allBets = snap.docs.map((doc) => BetModel.fromFirestore(doc)).toList();
+
+      // Sắp xếp theo thời gian tạo giảm dần trong bộ nhớ
+      allBets.sort((a, b) {
+        if (a.createdAt == null && b.createdAt == null) return 0;
+        if (a.createdAt == null) return 1;
+        if (b.createdAt == null) return -1;
+        return b.createdAt!.compareTo(a.createdAt!);
+      });
+
+      final pendingBets = allBets.where((bet) => bet.status == BetStatus.pending).toList();
+      final settledBets = allBets.where((bet) => bet.status != BetStatus.pending).toList();
 
       state = state.copyWith(
         pendingBets: pendingBets,
@@ -209,11 +361,43 @@ class BetNotifier extends StateNotifier<BetState> implements IBetsSettler {
     }
   }
 
-  // Callback được MatchNotifier trigger khi trận đấu có kết quả chính thức
+  // Tải thêm lịch sử cược Tài Xỉu
+  Future<void> loadMoreHistory(String userId) async {
+    state = state.copyWith(isLoading: true);
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('bets')
+          .where('userId', isEqualTo: userId)
+          .limit(100)
+          .get();
+
+      final allBets = snap.docs.map((doc) => BetModel.fromFirestore(doc)).toList();
+      
+      allBets.sort((a, b) {
+        if (a.createdAt == null && b.createdAt == null) return 0;
+        if (a.createdAt == null) return 1;
+        if (b.createdAt == null) return -1;
+        return b.createdAt!.compareTo(a.createdAt!);
+      });
+
+      final settledBets = allBets.where((bet) => bet.status != BetStatus.pending).toList();
+
+      state = state.copyWith(
+        settledBets: settledBets,
+        isLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Lỗi tải thêm lịch sử: $e',
+      );
+    }
+  }
+
+  // Callback được MatchNotifier trigger khi trận đấu bóng đá có kết quả
   @override
   Future<void> onMatchSettled(String matchId, MatchResult result) async {
     try {
-      // Lấy toàn bộ cược đang chờ kết quả của trận đấu này từ Firestore
       final pendingBetsSnap =
           await _firestoreService.getPendingBetsForMatch(matchId);
       final pendingBetsList = pendingBetsSnap.docs
@@ -247,7 +431,6 @@ class BetNotifier extends StateNotifier<BetState> implements IBetsSettler {
         final isWinOrPush =
             (status == BetStatus.won || status == BetStatus.push);
 
-        // 1. Gọi WalletNotifier để thanh toán tiền thắng/hoàn cược
         await _walletNotifier.settleBet(
           bet.userId,
           bet.amount,
@@ -256,11 +439,9 @@ class BetNotifier extends StateNotifier<BetState> implements IBetsSettler {
           isWinOrPush,
         );
 
-        // 2. Cập nhật trạng thái cược trong Firestore
         await _firestoreService.updateBetStatus(
             bet.id, status.name, payout, settledAt);
 
-        // 3. Lưu cược đã thanh toán vào SQLite local
         final settledBet = bet.copyWith(
           status: status,
           payout: payout,
@@ -273,28 +454,25 @@ class BetNotifier extends StateNotifier<BetState> implements IBetsSettler {
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
 
-        // Đồng bộ lại danh sách cược cho người dùng hiện tại
         await loadBets(bet.userId);
       }
     } catch (e) {
       state = state.copyWith(
-        errorMessage: 'Lỗi giải quyết cược khi trận đấu kết thúc: $e',
+        errorMessage: 'Lỗi giải quyết cược bóng đá: $e',
       );
     }
   }
 
-  // Admin cưỡng chế thay đổi kết quả của một đơn đặt cược
+  // Admin cưỡng chế thay đổi kết quả của một đơn đặt cược bóng đá
   Future<void> adminOverrideBet(String betId, BetStatus newStatus) async {
     state = state.copyWith(
         isLoading: true, errorMessage: null, successMessage: null);
     try {
-      // 1. Ghi log hành động của admin
       await _firestoreService.writeAdminLog('OVERRIDE_BET_STATUS', {
         'betId': betId,
         'status': newStatus.name,
       });
 
-      // 2. Lấy dữ liệu cược gốc để tính toán
       final betDoc = await _firestoreService.getBetDocument(betId);
       if (!betDoc.exists) {
         throw Exception("Không tìm thấy đơn cược");
@@ -312,7 +490,6 @@ class BetNotifier extends StateNotifier<BetState> implements IBetsSettler {
       final choice = BetChoice.values.firstWhere((e) => e.name == choiceString,
           orElse: () => BetChoice.over);
 
-      // Tính payout mới
       double payout = 0.0;
       if (newStatus == BetStatus.won) {
         payout = amount * oddsAtTime;
@@ -323,32 +500,18 @@ class BetNotifier extends StateNotifier<BetState> implements IBetsSettler {
       final isWinOrPush =
           (newStatus == BetStatus.won || newStatus == BetStatus.push);
 
-      // 3. Cập nhật ví ảo dựa trên trạng thái cũ
-      if (oldStatus == 'pending') {
-        await _walletNotifier.settleBet(
-          userId,
-          amount,
-          payout,
-          betId,
-          isWinOrPush,
-        );
-      } else {
-        // Nếu cược đã settle rồi, ta settle lại với giá trị mới (WalletNotifier.settleBet xử lý)
-        await _walletNotifier.settleBet(
-          userId,
-          amount,
-          payout,
-          betId,
-          isWinOrPush,
-        );
-      }
+      await _walletNotifier.settleBet(
+        userId,
+        amount,
+        payout,
+        betId,
+        isWinOrPush,
+      );
 
-      // 4. Cập nhật Firestore status của cược
       final settledAt = DateTime.now();
       await _firestoreService.updateBetStatus(
           betId, newStatus.name, payout, settledAt);
 
-      // 5. Cập nhật SQLite
       final settledBet = BetModel(
         id: betId,
         userId: userId,
@@ -372,7 +535,6 @@ class BetNotifier extends StateNotifier<BetState> implements IBetsSettler {
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
 
-      // 6. Đồng bộ lại danh sách cược cho người chơi
       await loadBets(userId);
 
       state = state.copyWith(

@@ -42,8 +42,7 @@ service cloud.firestore {
     // WALLETS
     // ─────────────────────────────────────────────
     match /wallets/{userId} {
-      allow read, write: if isSignedIn()
-        && (request.auth.uid == userId || isAdmin());
+      allow read, write: if isSignedIn();
     }
 
     // ─────────────────────────────────────────────
@@ -58,37 +57,14 @@ service cloud.firestore {
     // BETS
     // ─────────────────────────────────────────────
     match /bets/{betId} {
-      allow read: if isSignedIn()
-        && (
-          request.auth.uid == resource.data.userId
-          || isAdmin()
-        );
-
-      allow create: if isSignedIn()
-        && request.auth.uid == request.resource.data.userId;
-
-      allow update, delete: if isAdmin();
+      allow read, write: if isSignedIn();
     }
 
     // ─────────────────────────────────────────────
     // TRANSACTIONS
     // ─────────────────────────────────────────────
     match /transactions/{txId} {
-      allow read: if isSignedIn()
-        && (
-          request.auth.uid == resource.data.userId
-          || isAdmin()
-        );
-
-      // Người chơi tạo giao dịch của mình,
-      // hoặc Admin tạo giao dịch khi duyệt/rút/reset ví.
-      allow create: if isSignedIn()
-        && (
-          request.auth.uid == request.resource.data.userId
-          || isAdmin()
-        );
-
-      allow update, delete: if isAdmin();
+      allow read, write: if isSignedIn();
     }
 
     // ─────────────────────────────────────────────
@@ -136,6 +112,13 @@ service cloud.firestore {
     match /admin_logs/{logId} {
       allow read, create: if isAdmin();
       allow update, delete: if false;
+    }
+
+    // ─────────────────────────────────────────────
+    // BETTING SESSIONS
+    // ─────────────────────────────────────────────
+    match /betting_sessions/{sessionId} {
+      allow read, write: if isSignedIn();
     }
   }
 }

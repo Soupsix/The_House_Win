@@ -16,10 +16,20 @@ final _privateConstructorUsedError = UnsupportedError(
 
 /// @nodoc
 mixin _$BetState {
-  List<BetModel> get pendingBets => throw _privateConstructorUsedError;
-  List<BetModel> get settledBets => throw _privateConstructorUsedError;
+// Phiên cược Tài Xỉu đang active
+  BettingSessionModel? get activeSession =>
+      throw _privateConstructorUsedError; // Countdown còn lại của phiên (60 → 0)
+  int get countdown =>
+      throw _privateConstructorUsedError; // Trạng thái phiên hiện tại
+  SessionStatus get sessionStatus =>
+      throw _privateConstructorUsedError; // Đơn cược nháp đang nhập (chưa confirm)
   BetDraftModel? get currentDraft =>
-      throw _privateConstructorUsedError; // bet đang nhập chưa confirm
+      throw _privateConstructorUsedError; // Danh sách cược của user trong phiên hiện tại
+  List<BetModel> get currentSessionBets =>
+      throw _privateConstructorUsedError; // Lịch sử cược đã kết thúc
+  List<BetModel> get settledBets =>
+      throw _privateConstructorUsedError; // Danh sách cược đang pending của bóng đá (giữ lại để tương thích)
+  List<BetModel> get pendingBets => throw _privateConstructorUsedError;
   bool get isSubmitting => throw _privateConstructorUsedError;
   bool get isLoading => throw _privateConstructorUsedError;
   String? get errorMessage => throw _privateConstructorUsedError;
@@ -38,14 +48,19 @@ abstract class $BetStateCopyWith<$Res> {
       _$BetStateCopyWithImpl<$Res, BetState>;
   @useResult
   $Res call(
-      {List<BetModel> pendingBets,
-      List<BetModel> settledBets,
+      {BettingSessionModel? activeSession,
+      int countdown,
+      SessionStatus sessionStatus,
       BetDraftModel? currentDraft,
+      List<BetModel> currentSessionBets,
+      List<BetModel> settledBets,
+      List<BetModel> pendingBets,
       bool isSubmitting,
       bool isLoading,
       String? errorMessage,
       String? successMessage});
 
+  $BettingSessionModelCopyWith<$Res>? get activeSession;
   $BetDraftModelCopyWith<$Res>? get currentDraft;
 }
 
@@ -64,27 +79,47 @@ class _$BetStateCopyWithImpl<$Res, $Val extends BetState>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? pendingBets = null,
-    Object? settledBets = null,
+    Object? activeSession = freezed,
+    Object? countdown = null,
+    Object? sessionStatus = null,
     Object? currentDraft = freezed,
+    Object? currentSessionBets = null,
+    Object? settledBets = null,
+    Object? pendingBets = null,
     Object? isSubmitting = null,
     Object? isLoading = null,
     Object? errorMessage = freezed,
     Object? successMessage = freezed,
   }) {
     return _then(_value.copyWith(
-      pendingBets: null == pendingBets
-          ? _value.pendingBets
-          : pendingBets // ignore: cast_nullable_to_non_nullable
+      activeSession: freezed == activeSession
+          ? _value.activeSession
+          : activeSession // ignore: cast_nullable_to_non_nullable
+              as BettingSessionModel?,
+      countdown: null == countdown
+          ? _value.countdown
+          : countdown // ignore: cast_nullable_to_non_nullable
+              as int,
+      sessionStatus: null == sessionStatus
+          ? _value.sessionStatus
+          : sessionStatus // ignore: cast_nullable_to_non_nullable
+              as SessionStatus,
+      currentDraft: freezed == currentDraft
+          ? _value.currentDraft
+          : currentDraft // ignore: cast_nullable_to_non_nullable
+              as BetDraftModel?,
+      currentSessionBets: null == currentSessionBets
+          ? _value.currentSessionBets
+          : currentSessionBets // ignore: cast_nullable_to_non_nullable
               as List<BetModel>,
       settledBets: null == settledBets
           ? _value.settledBets
           : settledBets // ignore: cast_nullable_to_non_nullable
               as List<BetModel>,
-      currentDraft: freezed == currentDraft
-          ? _value.currentDraft
-          : currentDraft // ignore: cast_nullable_to_non_nullable
-              as BetDraftModel?,
+      pendingBets: null == pendingBets
+          ? _value.pendingBets
+          : pendingBets // ignore: cast_nullable_to_non_nullable
+              as List<BetModel>,
       isSubmitting: null == isSubmitting
           ? _value.isSubmitting
           : isSubmitting // ignore: cast_nullable_to_non_nullable
@@ -102,6 +137,20 @@ class _$BetStateCopyWithImpl<$Res, $Val extends BetState>
           : successMessage // ignore: cast_nullable_to_non_nullable
               as String?,
     ) as $Val);
+  }
+
+  /// Create a copy of BetState
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $BettingSessionModelCopyWith<$Res>? get activeSession {
+    if (_value.activeSession == null) {
+      return null;
+    }
+
+    return $BettingSessionModelCopyWith<$Res>(_value.activeSession!, (value) {
+      return _then(_value.copyWith(activeSession: value) as $Val);
+    });
   }
 
   /// Create a copy of BetState
@@ -128,14 +177,20 @@ abstract class _$$BetStateImplCopyWith<$Res>
   @override
   @useResult
   $Res call(
-      {List<BetModel> pendingBets,
-      List<BetModel> settledBets,
+      {BettingSessionModel? activeSession,
+      int countdown,
+      SessionStatus sessionStatus,
       BetDraftModel? currentDraft,
+      List<BetModel> currentSessionBets,
+      List<BetModel> settledBets,
+      List<BetModel> pendingBets,
       bool isSubmitting,
       bool isLoading,
       String? errorMessage,
       String? successMessage});
 
+  @override
+  $BettingSessionModelCopyWith<$Res>? get activeSession;
   @override
   $BetDraftModelCopyWith<$Res>? get currentDraft;
 }
@@ -153,27 +208,47 @@ class __$$BetStateImplCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? pendingBets = null,
-    Object? settledBets = null,
+    Object? activeSession = freezed,
+    Object? countdown = null,
+    Object? sessionStatus = null,
     Object? currentDraft = freezed,
+    Object? currentSessionBets = null,
+    Object? settledBets = null,
+    Object? pendingBets = null,
     Object? isSubmitting = null,
     Object? isLoading = null,
     Object? errorMessage = freezed,
     Object? successMessage = freezed,
   }) {
     return _then(_$BetStateImpl(
-      pendingBets: null == pendingBets
-          ? _value._pendingBets
-          : pendingBets // ignore: cast_nullable_to_non_nullable
+      activeSession: freezed == activeSession
+          ? _value.activeSession
+          : activeSession // ignore: cast_nullable_to_non_nullable
+              as BettingSessionModel?,
+      countdown: null == countdown
+          ? _value.countdown
+          : countdown // ignore: cast_nullable_to_non_nullable
+              as int,
+      sessionStatus: null == sessionStatus
+          ? _value.sessionStatus
+          : sessionStatus // ignore: cast_nullable_to_non_nullable
+              as SessionStatus,
+      currentDraft: freezed == currentDraft
+          ? _value.currentDraft
+          : currentDraft // ignore: cast_nullable_to_non_nullable
+              as BetDraftModel?,
+      currentSessionBets: null == currentSessionBets
+          ? _value._currentSessionBets
+          : currentSessionBets // ignore: cast_nullable_to_non_nullable
               as List<BetModel>,
       settledBets: null == settledBets
           ? _value._settledBets
           : settledBets // ignore: cast_nullable_to_non_nullable
               as List<BetModel>,
-      currentDraft: freezed == currentDraft
-          ? _value.currentDraft
-          : currentDraft // ignore: cast_nullable_to_non_nullable
-              as BetDraftModel?,
+      pendingBets: null == pendingBets
+          ? _value._pendingBets
+          : pendingBets // ignore: cast_nullable_to_non_nullable
+              as List<BetModel>,
       isSubmitting: null == isSubmitting
           ? _value.isSubmitting
           : isSubmitting // ignore: cast_nullable_to_non_nullable
@@ -198,26 +273,50 @@ class __$$BetStateImplCopyWithImpl<$Res>
 
 class _$BetStateImpl implements _BetState {
   const _$BetStateImpl(
-      {final List<BetModel> pendingBets = const [],
-      final List<BetModel> settledBets = const [],
+      {this.activeSession,
+      this.countdown = 60,
+      this.sessionStatus = SessionStatus.open,
       this.currentDraft,
+      final List<BetModel> currentSessionBets = const [],
+      final List<BetModel> settledBets = const [],
+      final List<BetModel> pendingBets = const [],
       this.isSubmitting = false,
       this.isLoading = false,
       this.errorMessage,
       this.successMessage})
-      : _pendingBets = pendingBets,
-        _settledBets = settledBets;
+      : _currentSessionBets = currentSessionBets,
+        _settledBets = settledBets,
+        _pendingBets = pendingBets;
 
-  final List<BetModel> _pendingBets;
+// Phiên cược Tài Xỉu đang active
+  @override
+  final BettingSessionModel? activeSession;
+// Countdown còn lại của phiên (60 → 0)
   @override
   @JsonKey()
-  List<BetModel> get pendingBets {
-    if (_pendingBets is EqualUnmodifiableListView) return _pendingBets;
+  final int countdown;
+// Trạng thái phiên hiện tại
+  @override
+  @JsonKey()
+  final SessionStatus sessionStatus;
+// Đơn cược nháp đang nhập (chưa confirm)
+  @override
+  final BetDraftModel? currentDraft;
+// Danh sách cược của user trong phiên hiện tại
+  final List<BetModel> _currentSessionBets;
+// Danh sách cược của user trong phiên hiện tại
+  @override
+  @JsonKey()
+  List<BetModel> get currentSessionBets {
+    if (_currentSessionBets is EqualUnmodifiableListView)
+      return _currentSessionBets;
     // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_pendingBets);
+    return EqualUnmodifiableListView(_currentSessionBets);
   }
 
+// Lịch sử cược đã kết thúc
   final List<BetModel> _settledBets;
+// Lịch sử cược đã kết thúc
   @override
   @JsonKey()
   List<BetModel> get settledBets {
@@ -226,9 +325,17 @@ class _$BetStateImpl implements _BetState {
     return EqualUnmodifiableListView(_settledBets);
   }
 
+// Danh sách cược đang pending của bóng đá (giữ lại để tương thích)
+  final List<BetModel> _pendingBets;
+// Danh sách cược đang pending của bóng đá (giữ lại để tương thích)
   @override
-  final BetDraftModel? currentDraft;
-// bet đang nhập chưa confirm
+  @JsonKey()
+  List<BetModel> get pendingBets {
+    if (_pendingBets is EqualUnmodifiableListView) return _pendingBets;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_pendingBets);
+  }
+
   @override
   @JsonKey()
   final bool isSubmitting;
@@ -242,7 +349,7 @@ class _$BetStateImpl implements _BetState {
 
   @override
   String toString() {
-    return 'BetState(pendingBets: $pendingBets, settledBets: $settledBets, currentDraft: $currentDraft, isSubmitting: $isSubmitting, isLoading: $isLoading, errorMessage: $errorMessage, successMessage: $successMessage)';
+    return 'BetState(activeSession: $activeSession, countdown: $countdown, sessionStatus: $sessionStatus, currentDraft: $currentDraft, currentSessionBets: $currentSessionBets, settledBets: $settledBets, pendingBets: $pendingBets, isSubmitting: $isSubmitting, isLoading: $isLoading, errorMessage: $errorMessage, successMessage: $successMessage)';
   }
 
   @override
@@ -250,12 +357,20 @@ class _$BetStateImpl implements _BetState {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$BetStateImpl &&
-            const DeepCollectionEquality()
-                .equals(other._pendingBets, _pendingBets) &&
-            const DeepCollectionEquality()
-                .equals(other._settledBets, _settledBets) &&
+            (identical(other.activeSession, activeSession) ||
+                other.activeSession == activeSession) &&
+            (identical(other.countdown, countdown) ||
+                other.countdown == countdown) &&
+            (identical(other.sessionStatus, sessionStatus) ||
+                other.sessionStatus == sessionStatus) &&
             (identical(other.currentDraft, currentDraft) ||
                 other.currentDraft == currentDraft) &&
+            const DeepCollectionEquality()
+                .equals(other._currentSessionBets, _currentSessionBets) &&
+            const DeepCollectionEquality()
+                .equals(other._settledBets, _settledBets) &&
+            const DeepCollectionEquality()
+                .equals(other._pendingBets, _pendingBets) &&
             (identical(other.isSubmitting, isSubmitting) ||
                 other.isSubmitting == isSubmitting) &&
             (identical(other.isLoading, isLoading) ||
@@ -269,9 +384,13 @@ class _$BetStateImpl implements _BetState {
   @override
   int get hashCode => Object.hash(
       runtimeType,
-      const DeepCollectionEquality().hash(_pendingBets),
-      const DeepCollectionEquality().hash(_settledBets),
+      activeSession,
+      countdown,
+      sessionStatus,
       currentDraft,
+      const DeepCollectionEquality().hash(_currentSessionBets),
+      const DeepCollectionEquality().hash(_settledBets),
+      const DeepCollectionEquality().hash(_pendingBets),
       isSubmitting,
       isLoading,
       errorMessage,
@@ -288,20 +407,36 @@ class _$BetStateImpl implements _BetState {
 
 abstract class _BetState implements BetState {
   const factory _BetState(
-      {final List<BetModel> pendingBets,
-      final List<BetModel> settledBets,
+      {final BettingSessionModel? activeSession,
+      final int countdown,
+      final SessionStatus sessionStatus,
       final BetDraftModel? currentDraft,
+      final List<BetModel> currentSessionBets,
+      final List<BetModel> settledBets,
+      final List<BetModel> pendingBets,
       final bool isSubmitting,
       final bool isLoading,
       final String? errorMessage,
       final String? successMessage}) = _$BetStateImpl;
 
+// Phiên cược Tài Xỉu đang active
+  @override
+  BettingSessionModel?
+      get activeSession; // Countdown còn lại của phiên (60 → 0)
+  @override
+  int get countdown; // Trạng thái phiên hiện tại
+  @override
+  SessionStatus get sessionStatus; // Đơn cược nháp đang nhập (chưa confirm)
+  @override
+  BetDraftModel?
+      get currentDraft; // Danh sách cược của user trong phiên hiện tại
+  @override
+  List<BetModel> get currentSessionBets; // Lịch sử cược đã kết thúc
+  @override
+  List<BetModel>
+      get settledBets; // Danh sách cược đang pending của bóng đá (giữ lại để tương thích)
   @override
   List<BetModel> get pendingBets;
-  @override
-  List<BetModel> get settledBets;
-  @override
-  BetDraftModel? get currentDraft; // bet đang nhập chưa confirm
   @override
   bool get isSubmitting;
   @override
@@ -319,13 +454,23 @@ abstract class _BetState implements BetState {
       throw _privateConstructorUsedError;
 }
 
+BetDraftModel _$BetDraftModelFromJson(Map<String, dynamic> json) {
+  return _BetDraftModel.fromJson(json);
+}
+
 /// @nodoc
 mixin _$BetDraftModel {
-  String get matchId => throw _privateConstructorUsedError;
+  String? get matchId =>
+      throw _privateConstructorUsedError; // null nếu là cược Tài Xỉu
+  String? get sessionId =>
+      throw _privateConstructorUsedError; // null nếu là cược Bóng đá
   BetChoice get choice => throw _privateConstructorUsedError; // over hoặc under
   double get amount => throw _privateConstructorUsedError;
   double get oddsAtTime => throw _privateConstructorUsedError;
   double get potentialPayout => throw _privateConstructorUsedError;
+
+  /// Serializes this BetDraftModel to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of BetDraftModel
   /// with the given fields replaced by the non-null parameter values.
@@ -341,7 +486,8 @@ abstract class $BetDraftModelCopyWith<$Res> {
       _$BetDraftModelCopyWithImpl<$Res, BetDraftModel>;
   @useResult
   $Res call(
-      {String matchId,
+      {String? matchId,
+      String? sessionId,
       BetChoice choice,
       double amount,
       double oddsAtTime,
@@ -363,17 +509,22 @@ class _$BetDraftModelCopyWithImpl<$Res, $Val extends BetDraftModel>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? matchId = null,
+    Object? matchId = freezed,
+    Object? sessionId = freezed,
     Object? choice = null,
     Object? amount = null,
     Object? oddsAtTime = null,
     Object? potentialPayout = null,
   }) {
     return _then(_value.copyWith(
-      matchId: null == matchId
+      matchId: freezed == matchId
           ? _value.matchId
           : matchId // ignore: cast_nullable_to_non_nullable
-              as String,
+              as String?,
+      sessionId: freezed == sessionId
+          ? _value.sessionId
+          : sessionId // ignore: cast_nullable_to_non_nullable
+              as String?,
       choice: null == choice
           ? _value.choice
           : choice // ignore: cast_nullable_to_non_nullable
@@ -403,7 +554,8 @@ abstract class _$$BetDraftModelImplCopyWith<$Res>
   @override
   @useResult
   $Res call(
-      {String matchId,
+      {String? matchId,
+      String? sessionId,
       BetChoice choice,
       double amount,
       double oddsAtTime,
@@ -423,17 +575,22 @@ class __$$BetDraftModelImplCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? matchId = null,
+    Object? matchId = freezed,
+    Object? sessionId = freezed,
     Object? choice = null,
     Object? amount = null,
     Object? oddsAtTime = null,
     Object? potentialPayout = null,
   }) {
     return _then(_$BetDraftModelImpl(
-      matchId: null == matchId
+      matchId: freezed == matchId
           ? _value.matchId
           : matchId // ignore: cast_nullable_to_non_nullable
-              as String,
+              as String?,
+      sessionId: freezed == sessionId
+          ? _value.sessionId
+          : sessionId // ignore: cast_nullable_to_non_nullable
+              as String?,
       choice: null == choice
           ? _value.choice
           : choice // ignore: cast_nullable_to_non_nullable
@@ -455,17 +612,25 @@ class __$$BetDraftModelImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$BetDraftModelImpl implements _BetDraftModel {
   const _$BetDraftModelImpl(
-      {required this.matchId,
+      {this.matchId,
+      this.sessionId,
       required this.choice,
       required this.amount,
       required this.oddsAtTime,
       required this.potentialPayout});
 
+  factory _$BetDraftModelImpl.fromJson(Map<String, dynamic> json) =>
+      _$$BetDraftModelImplFromJson(json);
+
   @override
-  final String matchId;
+  final String? matchId;
+// null nếu là cược Tài Xỉu
+  @override
+  final String? sessionId;
+// null nếu là cược Bóng đá
   @override
   final BetChoice choice;
 // over hoặc under
@@ -478,7 +643,7 @@ class _$BetDraftModelImpl implements _BetDraftModel {
 
   @override
   String toString() {
-    return 'BetDraftModel(matchId: $matchId, choice: $choice, amount: $amount, oddsAtTime: $oddsAtTime, potentialPayout: $potentialPayout)';
+    return 'BetDraftModel(matchId: $matchId, sessionId: $sessionId, choice: $choice, amount: $amount, oddsAtTime: $oddsAtTime, potentialPayout: $potentialPayout)';
   }
 
   @override
@@ -487,6 +652,8 @@ class _$BetDraftModelImpl implements _BetDraftModel {
         (other.runtimeType == runtimeType &&
             other is _$BetDraftModelImpl &&
             (identical(other.matchId, matchId) || other.matchId == matchId) &&
+            (identical(other.sessionId, sessionId) ||
+                other.sessionId == sessionId) &&
             (identical(other.choice, choice) || other.choice == choice) &&
             (identical(other.amount, amount) || other.amount == amount) &&
             (identical(other.oddsAtTime, oddsAtTime) ||
@@ -495,9 +662,10 @@ class _$BetDraftModelImpl implements _BetDraftModel {
                 other.potentialPayout == potentialPayout));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(
-      runtimeType, matchId, choice, amount, oddsAtTime, potentialPayout);
+  int get hashCode => Object.hash(runtimeType, matchId, sessionId, choice,
+      amount, oddsAtTime, potentialPayout);
 
   /// Create a copy of BetDraftModel
   /// with the given fields replaced by the non-null parameter values.
@@ -506,18 +674,31 @@ class _$BetDraftModelImpl implements _BetDraftModel {
   @pragma('vm:prefer-inline')
   _$$BetDraftModelImplCopyWith<_$BetDraftModelImpl> get copyWith =>
       __$$BetDraftModelImplCopyWithImpl<_$BetDraftModelImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$BetDraftModelImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class _BetDraftModel implements BetDraftModel {
   const factory _BetDraftModel(
-      {required final String matchId,
+      {final String? matchId,
+      final String? sessionId,
       required final BetChoice choice,
       required final double amount,
       required final double oddsAtTime,
       required final double potentialPayout}) = _$BetDraftModelImpl;
 
+  factory _BetDraftModel.fromJson(Map<String, dynamic> json) =
+      _$BetDraftModelImpl.fromJson;
+
   @override
-  String get matchId;
+  String? get matchId; // null nếu là cược Tài Xỉu
+  @override
+  String? get sessionId; // null nếu là cược Bóng đá
   @override
   BetChoice get choice; // over hoặc under
   @override

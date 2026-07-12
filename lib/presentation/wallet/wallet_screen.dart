@@ -90,27 +90,21 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
                         ),
                       ),
                     ),
-                    SliverAppBar(
+                    SliverPersistentHeader(
                       pinned: true,
-                      primary: false,
-                      automaticallyImplyLeading: false,
-                      backgroundColor: const Color(0xFF0D0D1A),
-                      toolbarHeight: 0,
-                      bottom: PreferredSize(
-                        preferredSize: const Size.fromHeight(48),
-                        child: Container(
-                          color: const Color(0xFF0D0D1A),
-                          child: TabBar(
-                            controller: _tabController,
-                            indicatorColor: const Color(0xFFE94560),
-                            labelColor: const Color(0xFFE94560),
-                            unselectedLabelColor: const Color(0xFF6A7A9A),
-                            indicatorWeight: 3,
-                            tabs: const [
-                              Tab(text: 'LỊCH SỬ'),
-                              Tab(text: 'RÚT TIỀN'),
-                            ],
-                          ),
+                      delegate: _SliverAppBarDelegate(
+                        TabBar(
+                          controller: _tabController,
+                          indicatorColor: const Color(0xFFE94560),
+                          labelColor: const Color(0xFFE94560),
+                          unselectedLabelColor: const Color(0xFF6A7A9A),
+                          indicatorWeight: 3,
+                          labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                          unselectedLabelStyle: const TextStyle(fontSize: 13),
+                          tabs: const [
+                            Tab(text: 'LỊCH SỬ'),
+                            Tab(text: 'RÚT TIỀN'),
+                          ],
                         ),
                       ),
                     ),
@@ -616,4 +610,34 @@ class _TxConfig {
   final Color color;
   final String label;
   const _TxConfig(this.icon, this.color, this.label);
+}
+
+class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
+  _SliverAppBarDelegate(this._tabBar);
+
+  final TabBar _tabBar;
+
+  @override
+  double get minExtent => _tabBar.preferredSize.height;
+  @override
+  double get maxExtent => _tabBar.preferredSize.height;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      color: const Color(0xFF0D0D1A),
+      child: MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          textScaler: TextScaler.noScaling,
+        ),
+        child: _tabBar,
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
+    return false;
+  }
 }
