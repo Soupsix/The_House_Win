@@ -11,18 +11,8 @@ part 'bet_state.g.dart';
 @freezed
 class BetState with _$BetState {
   const factory BetState({
-    // Phiên cược Tài Xỉu đang active
-    BettingSessionModel? activeSession,
-    // Countdown còn lại của phiên (60 → 0)
-    @Default(60) int countdown,
-    // Trạng thái phiên hiện tại
-    @Default(SessionStatus.open) SessionStatus sessionStatus,
-    
     // Đơn cược nháp đang nhập (chưa confirm)
     BetDraftModel? currentDraft,
-    
-    // Danh sách cược của user trong phiên hiện tại
-    @Default([]) List<BetModel> currentSessionBets,
     
     // Lịch sử cược đã kết thúc
     @Default([]) List<BetModel> settledBets,

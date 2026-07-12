@@ -27,6 +27,7 @@ mixin _$TransactionModel {
   double get amount => throw _privateConstructorUsedError;
   String? get referenceId =>
       throw _privateConstructorUsedError; // id của đối tượng liên quan (ví dụ: betId)
+  GameType? get gameType => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
 
   /// Serializes this TransactionModel to a JSON map.
@@ -51,6 +52,7 @@ abstract class $TransactionModelCopyWith<$Res> {
       String type,
       double amount,
       String? referenceId,
+      GameType? gameType,
       DateTime createdAt});
 }
 
@@ -74,6 +76,7 @@ class _$TransactionModelCopyWithImpl<$Res, $Val extends TransactionModel>
     Object? type = null,
     Object? amount = null,
     Object? referenceId = freezed,
+    Object? gameType = freezed,
     Object? createdAt = null,
   }) {
     return _then(_value.copyWith(
@@ -97,6 +100,10 @@ class _$TransactionModelCopyWithImpl<$Res, $Val extends TransactionModel>
           ? _value.referenceId
           : referenceId // ignore: cast_nullable_to_non_nullable
               as String?,
+      gameType: freezed == gameType
+          ? _value.gameType
+          : gameType // ignore: cast_nullable_to_non_nullable
+              as GameType?,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -119,6 +126,7 @@ abstract class _$$TransactionModelImplCopyWith<$Res>
       String type,
       double amount,
       String? referenceId,
+      GameType? gameType,
       DateTime createdAt});
 }
 
@@ -140,6 +148,7 @@ class __$$TransactionModelImplCopyWithImpl<$Res>
     Object? type = null,
     Object? amount = null,
     Object? referenceId = freezed,
+    Object? gameType = freezed,
     Object? createdAt = null,
   }) {
     return _then(_$TransactionModelImpl(
@@ -163,6 +172,10 @@ class __$$TransactionModelImplCopyWithImpl<$Res>
           ? _value.referenceId
           : referenceId // ignore: cast_nullable_to_non_nullable
               as String?,
+      gameType: freezed == gameType
+          ? _value.gameType
+          : gameType // ignore: cast_nullable_to_non_nullable
+              as GameType?,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -180,6 +193,7 @@ class _$TransactionModelImpl implements _TransactionModel {
       required this.type,
       required this.amount,
       this.referenceId,
+      this.gameType,
       required this.createdAt});
 
   factory _$TransactionModelImpl.fromJson(Map<String, dynamic> json) =>
@@ -198,11 +212,13 @@ class _$TransactionModelImpl implements _TransactionModel {
   final String? referenceId;
 // id của đối tượng liên quan (ví dụ: betId)
   @override
+  final GameType? gameType;
+  @override
   final DateTime createdAt;
 
   @override
   String toString() {
-    return 'TransactionModel(id: $id, userId: $userId, type: $type, amount: $amount, referenceId: $referenceId, createdAt: $createdAt)';
+    return 'TransactionModel(id: $id, userId: $userId, type: $type, amount: $amount, referenceId: $referenceId, gameType: $gameType, createdAt: $createdAt)';
   }
 
   @override
@@ -216,6 +232,8 @@ class _$TransactionModelImpl implements _TransactionModel {
             (identical(other.amount, amount) || other.amount == amount) &&
             (identical(other.referenceId, referenceId) ||
                 other.referenceId == referenceId) &&
+            (identical(other.gameType, gameType) ||
+                other.gameType == gameType) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt));
   }
@@ -223,7 +241,7 @@ class _$TransactionModelImpl implements _TransactionModel {
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
-      runtimeType, id, userId, type, amount, referenceId, createdAt);
+      runtimeType, id, userId, type, amount, referenceId, gameType, createdAt);
 
   /// Create a copy of TransactionModel
   /// with the given fields replaced by the non-null parameter values.
@@ -249,6 +267,7 @@ abstract class _TransactionModel implements TransactionModel {
       required final String type,
       required final double amount,
       final String? referenceId,
+      final GameType? gameType,
       required final DateTime createdAt}) = _$TransactionModelImpl;
 
   factory _TransactionModel.fromJson(Map<String, dynamic> json) =
@@ -265,6 +284,8 @@ abstract class _TransactionModel implements TransactionModel {
   double get amount;
   @override
   String? get referenceId; // id của đối tượng liên quan (ví dụ: betId)
+  @override
+  GameType? get gameType;
   @override
   DateTime get createdAt;
 

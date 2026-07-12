@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -17,10 +19,45 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
   late TabController _tabController;
   final _withdrawController = TextEditingController();
 
+  late Timer _shuffleTimer;
+  final Random _random = Random();
+  late List<int> _withdrawAmounts;
+  late List<String> _withdrawNames;
+
+  final List<String> _baseNames = [
+    'Nguyễn Văn Tuấn', 'Trần Thị Mai', 'Lê Hoàng Sơn', 'Phạm Quỳnh Anh',
+    'Hoàng Minh Nhật', 'Vũ Thu Thảo', 'Đặng Hải Đăng', 'Bùi Ngọc Linh',
+    'Đỗ Văn Quyết', 'Hồ Thanh Tùng', 'Ngô Bảo Châu', 'Dương Tấn Phát',
+    'Lý Hương Giang', 'Đào Quốc Việt', 'Đoàn Thanh Trúc', 'Vương Đình Huệ',
+    'Trịnh Thị Nụ', 'Đinh Công Tráng', 'Lâm Chấn Huy', 'Phùng Thanh Độ',
+    'Mai Khôi', 'Tô Hữu Bằng', 'Nguyễn Thái Học', 'Trần Hưng Đạo',
+    'Lê Ngọc Hân', 'Phan Bội Châu', 'Hoàng Hoa Thám', 'Bùi Anh Tuấn',
+    'Vũ Đức Đam', 'Trần Thu Hà', 'Lê Bích Phương', 'Đặng Thùy Trâm'
+  ];
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    
+    // Generate 22 random amounts between 10m and 100m (step 100k)
+    _withdrawAmounts = List.generate(
+      22, 
+      (_) => 10000000 + _random.nextInt(900) * 100000
+    )..sort((a, b) => b.compareTo(a));
+
+    // Get 22 random names
+    final shuffledNames = List<String>.from(_baseNames)..shuffle(_random);
+    _withdrawNames = shuffledNames.take(22).toList();
+
+    _shuffleTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      if (mounted) {
+        setState(() {
+          _withdrawNames.shuffle(_random);
+        });
+      }
+    });
+
     Future.microtask(() {
       final user = ref.read(currentUserProvider);
       if (user != null) {
@@ -31,6 +68,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
 
   @override
   void dispose() {
+    _shuffleTimer.cancel();
     _tabController.dispose();
     _withdrawController.dispose();
     super.dispose();
@@ -41,7 +79,6 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
     final walletState = ref.watch(walletProvider);
     final user = ref.watch(currentUserProvider);
     final vnd = NumberFormat('#,###', 'vi_VN');
-    final dateFormat = DateFormat('HH:mm · dd/MM/yy');
 
     if (user == null) {
       return const Scaffold(
@@ -102,7 +139,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
                           labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                           unselectedLabelStyle: const TextStyle(fontSize: 13),
                           tabs: const [
-                            Tab(text: 'LỊCH SỬ'),
+                            Tab(text: 'NGƯỜI THÀNH CÔNG'),
                             Tab(text: 'RÚT TIỀN'),
                           ],
                         ),
@@ -113,7 +150,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
                 body: TabBarView(
                   controller: _tabController,
                   children: [
-                    _buildHistory(walletState, vnd, dateFormat),
+                    _buildSuccessfulWithdrawers(vnd),
                     _buildWithdrawTab(walletState, user.uid, vnd),
                   ],
                 ),
@@ -292,32 +329,15 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
     );
   }
 
-  // ── History Tab ──
-  Widget _buildHistory(
-      WalletState w, NumberFormat vnd, DateFormat dateFormat) {
-    if (w.transactionHistory.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.receipt_long_outlined,
-                color: Color(0xFF3A3A5C), size: 56),
-            SizedBox(height: 12),
-            Text('Chưa có giao dịch nào.',
-                style: TextStyle(color: Color(0xFF6A7A9A), fontSize: 16)),
-          ],
-        ),
-      );
-    }
-
+  // ── Successful Withdrawers Tab ──
+  Widget _buildSuccessfulWithdrawers(NumberFormat vnd) {
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      itemCount: w.transactionHistory.length,
+      itemCount: 22,
       itemBuilder: (context, index) {
-        final tx = w.transactionHistory[index];
-        final isPositive = tx.amount > 0;
-
-        final config = _txConfig(tx.type);
+        final amount = _withdrawAmounts[index];
+        final name = _withdrawNames[index];
+        final isTop3 = index < 3;
 
         return Container(
           margin: const EdgeInsets.only(bottom: 10),
@@ -326,42 +346,53 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
             color: const Color(0xFF16213E),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-                color: config.color.withValues(alpha: 0.15)),
+                color: isTop3 
+                    ? const Color(0xFFFFB347).withValues(alpha: 0.5) 
+                    : const Color(0xFF28DFB5).withValues(alpha: 0.15)),
           ),
           child: Row(
             children: [
               Container(
                 width: 42,
                 height: 42,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: config.color.withValues(alpha: 0.15),
+                  color: isTop3 
+                      ? const Color(0xFFFFB347).withValues(alpha: 0.15) 
+                      : const Color(0xFF28DFB5).withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(config.icon, color: config.color, size: 20),
+                child: isTop3
+                    ? const Icon(Icons.emoji_events, color: Color(0xFFFFB347), size: 22)
+                    : Text(
+                        '#${index + 1}',
+                        style: const TextStyle(
+                            color: Color(0xFF28DFB5),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14),
+                      ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(config.label,
+                    Text(name,
                         style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
-                            fontSize: 13)),
+                            fontSize: 14)),
                     const SizedBox(height: 2),
-                    Text(dateFormat.format(tx.createdAt),
-                        style: const TextStyle(
+                    const Text('Rút tiền thành công',
+                        style: TextStyle(
                             color: Color(0xFF6A7A9A), fontSize: 11)),
                   ],
                 ),
               ),
               Text(
-                '${isPositive ? '+' : ''}${vnd.format(tx.amount)} đ',
-                style: TextStyle(
-                  color: isPositive
-                      ? const Color(0xFF28DFB5)
-                      : const Color(0xFFE94560),
+                '+${vnd.format(amount)} đ',
+                style: const TextStyle(
+                  color: Color(0xFF28DFB5),
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
                 ),
@@ -583,33 +614,6 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
       ),
     );
   }
-
-  _TxConfig _txConfig(String type) {
-    return switch (type) {
-      'BET_LOCKED' || 'BET_PLACED' => const _TxConfig(
-          Icons.sports_soccer, Color(0xFFFFB347), 'Đặt cược (Đang chờ)'),
-      'BET_WIN' || 'BET_PAYOUT' =>
-        const _TxConfig(Icons.emoji_events, Color(0xFF28DFB5), 'Thắng cược 🎉'),
-      'BET_LOSE' => const _TxConfig(
-          Icons.money_off, Color(0xFFE94560), 'Thua cược'),
-      'ADMIN_WITHDRAW' => const _TxConfig(
-          Icons.remove_circle_outline, Color(0xFFE94560), 'Admin rút tiền'),
-      'WALLET_RESET' => const _TxConfig(
-          Icons.refresh, Color(0xFF4D80E4), 'Reset ví (Admin)'),
-      'LOAN' => const _TxConfig(
-          Icons.account_balance, Color(0xFF4D80E4), 'Nạp tiền / Khoản vay'),
-      'ESCROW_RELEASE' => const _TxConfig(
-          Icons.lock_open, Color(0xFF00D4AA), 'Giải phóng tiền khóa'),
-      _ => const _TxConfig(Icons.swap_horiz, Colors.white70, 'Giao dịch'),
-    };
-  }
-}
-
-class _TxConfig {
-  final IconData icon;
-  final Color color;
-  final String label;
-  const _TxConfig(this.icon, this.color, this.label);
 }
 
 class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {

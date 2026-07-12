@@ -22,6 +22,10 @@ class BettingSessionModel with _$BettingSessionModel {
     @Default(1.85) double oddsOver,
     @Default(1.95) double oddsUnder,
     @Default(2.5) double overUnderLine,
+    // Giá trị từng con xúc xắc khi kết toán (1-6, 0 = chưa có)
+    @Default(0) int dice1,
+    @Default(0) int dice2,
+    @Default(0) int dice3,
   }) = _BettingSessionModel;
 
   // Factory tạo BettingSessionModel từ JSON
@@ -55,6 +59,9 @@ class BettingSessionModel with _$BettingSessionModel {
       oddsOver: (data['oddsOver'] as num?)?.toDouble() ?? 1.85,
       oddsUnder: (data['oddsUnder'] as num?)?.toDouble() ?? 1.95,
       overUnderLine: (data['overUnderLine'] as num?)?.toDouble() ?? 2.5,
+      dice1: (data['dice1'] as num?)?.toInt() ?? 0,
+      dice2: (data['dice2'] as num?)?.toInt() ?? 0,
+      dice3: (data['dice3'] as num?)?.toInt() ?? 0,
     );
   }
 }
@@ -75,6 +82,9 @@ extension BettingSessionModelStorageExtension on BettingSessionModel {
       'oddsOver': oddsOver,
       'oddsUnder': oddsUnder,
       'overUnderLine': overUnderLine,
+      'dice1': dice1,
+      'dice2': dice2,
+      'dice3': dice3,
     };
   }
 }

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../application/bets/bet_provider.dart';
+import '../../application/bets/dice_provider.dart';
 import '../../application/auth/auth_provider.dart';
 import '../../domain/enums/session_status.dart';
 import '../../domain/enums/bet_choice.dart';
 
-// Bottom sheet xác nhận đặt cược Tài Xỉu hoặc Bóng đá
+// Bottom sheet xác nhận đặt cược Tài Xỉu
 class BetConfirmSheet extends ConsumerWidget {
   const BetConfirmSheet({super.key});
 
@@ -25,7 +25,7 @@ class BetConfirmSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final betState = ref.watch(betProvider);
+    final betState = ref.watch(diceProvider);
     final draft = betState.currentDraft;
     final isSubmitting = betState.isSubmitting;
     final sessionStatus = betState.sessionStatus;
@@ -40,7 +40,7 @@ class BetConfirmSheet extends ConsumerWidget {
 
     // Lắng nghe khi đặt cược thành công để tự động tắt bottom sheet
     ref.listen<String?>(
-      betProvider.select((s) => s.successMessage),
+      diceProvider.select((s) => s.successMessage),
       (previous, next) {
         if (next != null && (next.contains('thành công') || next.contains('Đặt cược'))) {
           Navigator.of(context).pop();
@@ -80,7 +80,7 @@ class BetConfirmSheet extends ConsumerWidget {
                   onPressed: isSubmitting
                       ? null
                       : () {
-                          ref.read(betProvider.notifier).cancelDraft();
+                          ref.read(diceProvider.notifier).cancelDraft();
                           Navigator.of(context).pop();
                         },
                   icon: const Icon(Icons.close, color: Color(0xFFA0A0B0)),
@@ -142,7 +142,7 @@ class BetConfirmSheet extends ConsumerWidget {
                   : () async {
                       final user = ref.read(currentUserProvider);
                       if (user != null) {
-                        await ref.read(betProvider.notifier).confirmBet(user.uid);
+                        await ref.read(diceProvider.notifier).confirmBet(user.uid);
                       }
                     },
               style: ElevatedButton.styleFrom(

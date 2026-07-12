@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import '../../application/auth/auth_provider.dart';
 import '../../core/router/app_routes.dart';
+import '../betting/my_bets_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
   final VoidCallback? onBackToHome;
@@ -234,7 +235,14 @@ class ProfileScreen extends ConsumerWidget {
                     onTap: () => context.push(AppRoutes.personalInfo),
                   ),
                   const Divider(color: Color(0xFF0F3460), height: 1, indent: 16, endIndent: 16),
-                  _buildMenuItem(Icons.history, 'Lịch sử cược'),
+                  _buildMenuItem(
+                    Icons.history, 
+                    'Lịch sử cược',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MyBetsScreen()),
+                    ),
+                  ),
                   const Divider(color: Color(0xFF0F3460), height: 1, indent: 16, endIndent: 16),
                   _buildMenuItem(Icons.account_balance_wallet, 'Ví điện tử'),
                   const Divider(color: Color(0xFF0F3460), height: 1, indent: 16, endIndent: 16),

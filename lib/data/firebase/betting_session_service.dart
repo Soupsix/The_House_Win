@@ -5,15 +5,35 @@ import '../../domain/enums/session_status.dart';
 import '../../domain/enums/bet_status.dart';
 import '../../domain/enums/bet_choice.dart';
 
-// Service giao tiếp Firebase để quản lý các phiên cược Tài Xỉu
+// Service giao tiếp Firebase để quản lý các phiên cược
 class BettingSessionService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final String sessionCollection;
+  final String betCollection;
+
+  BettingSessionService({
+    this.sessionCollection = 'betting_sessions',
+    this.betCollection = 'bets',
+  });
+
+  // Thời gian tối thiểu (giây) giữa khi phiên kết toán và khi phiên mới được mở
+  static const int postSettleCooldown = 12;
+
+  // Lấy phiên gần nhất bất kể trạng thái (để tính cooldown)
+  Future<BettingSessionModel?> getLatestSession() async {
+    final snap = await _firestore.collection(sessionCollection)
+        .orderBy('sessionNumber', descending: true)
+        .limit(1)
+        .get();
+    if (snap.docs.isEmpty) return null;
+    return BettingSessionModel.fromFirestore(snap.docs.first);
+  }
 
   // Tạo phiên cược mới với số thứ tự tăng dần bằng transaction
   Future<BettingSessionModel> createSession() async {
-    final docRef = _firestore.collection('betting_sessions').doc();
+    final docRef = _firestore.collection(sessionCollection).doc();
     return await _firestore.runTransaction((transaction) async {
-      final query = await _firestore.collection('betting_sessions')
+      final query = await _firestore.collection(sessionCollection)
           .orderBy('sessionNumber', descending: true)
           .limit(1)
           .get();
@@ -31,6 +51,21 @@ class BettingSessionService {
         if (latestStatus != 'settled' && !isStale) {
           return BettingSessionModel.fromFirestore(latestDoc);
         }
+
+        // Kiểm tra cooldown 12 giây sau khi phiên kết toán
+        if (latestStatus == 'settled') {
+          final settledAtTs = latestDoc.data()['settledAt'] as Timestamp?;
+          if (settledAtTs != null) {
+            final settledAt = settledAtTs.toDate();
+            final secondsSinceSettle = DateTime.now().difference(settledAt).inSeconds;
+            if (secondsSinceSettle < postSettleCooldown) {
+              throw Exception(
+                'Cooldown: phiên mới chỉ được mở sau $postSettleCooldown giây kể từ khi phiên trước kết toán'
+              );
+            }
+          }
+        }
+
         nextNumber = (latestDoc.data()['sessionNumber'] as int? ?? 0) + 1;
       }
 
@@ -51,7 +86,7 @@ class BettingSessionService {
 
   // Lắng nghe realtime thông tin phiên cược đang hoạt động
   Stream<BettingSessionModel?> watchActiveSession() {
-    return _firestore.collection('betting_sessions')
+    return _firestore.collection(sessionCollection)
         .orderBy('sessionNumber', descending: true)
         .limit(1)
         .snapshots()
@@ -65,7 +100,7 @@ class BettingSessionService {
 
   // Lắng nghe realtime danh sách cược của một phiên
   Stream<List<BetModel>> watchSessionBets(String sessionId) {
-    return _firestore.collection('bets')
+    return _firestore.collection(betCollection)
         .where('sessionId', isEqualTo: sessionId)
         .snapshots()
         .map((snap) => snap.docs.map((doc) => BetModel.fromFirestore(doc)).toList());
@@ -81,7 +116,7 @@ class BettingSessionService {
     } else if (status == SessionStatus.settled) {
       updateData['settledAt'] = FieldValue.serverTimestamp();
     }
-    await _firestore.collection('betting_sessions').doc(sessionId).update(updateData);
+    await _firestore.collection(sessionCollection).doc(sessionId).update(updateData);
   }
 
   // Kết toán phiên cược, phân chia thắng thua và cập nhật số dư ví bằng transaction
@@ -89,8 +124,11 @@ class BettingSessionService {
     required String sessionId,
     required String result,
     required bool isAdminOverride,
+    int dice1 = 0,
+    int dice2 = 0,
+    int dice3 = 0,
   }) async {
-    final sessionRef = _firestore.collection('betting_sessions').doc(sessionId);
+    final sessionRef = _firestore.collection(sessionCollection).doc(sessionId);
 
     await _firestore.runTransaction((transaction) async {
       final sessionSnap = await transaction.get(sessionRef);
@@ -105,7 +143,7 @@ class BettingSessionService {
           : result;
 
       // 1. Tìm tất cả các cược đang chờ của phiên này
-      final query = await _firestore.collection('bets')
+      final query = await _firestore.collection(betCollection)
           .where('sessionId', isEqualTo: sessionId)
           .where('status', isEqualTo: 'pending')
           .get();
@@ -126,6 +164,9 @@ class BettingSessionService {
         'settledAt': FieldValue.serverTimestamp(),
         'result': finalResult,
         'isAdminOverride': dbIsAdminOverride || isAdminOverride,
+        'dice1': dice1,
+        'dice2': dice2,
+        'dice3': dice3,
       });
 
       // 4. Giải quyết từng đơn cược và hoàn tiền thắng
@@ -153,8 +194,11 @@ class BettingSessionService {
           final balance = (walletData['balance'] as num?)?.toDouble() ?? 0.0;
           final lockedAmount = (walletData['lockedAmount'] as num?)?.toDouble() ?? 0.0;
 
+          // Mở khóa số tiền đã lock khi đặt cược
           final nextLockedAmount = (lockedAmount - amount < 0) ? 0.0 : lockedAmount - amount;
-          final nextBalance = isWin ? (balance + payout) : balance;
+          // Thắng: cộng payout (gồm cả vốn + lời) vào balance
+          // Thua: trừ số tiền đã đặt cược khỏi balance (thực tế mới mất tiền)
+          final nextBalance = isWin ? (balance + payout) : (balance - amount);
 
           transaction.update(walletSnap.reference, {
             'balance': nextBalance,
@@ -180,7 +224,7 @@ class BettingSessionService {
     required String result,
     required String adminId,
   }) async {
-    final sessionRef = _firestore.collection('betting_sessions').doc(sessionId);
+    final sessionRef = _firestore.collection(sessionCollection).doc(sessionId);
     await _firestore.runTransaction((transaction) async {
       final snap = await transaction.get(sessionRef);
       if (!snap.exists) throw Exception("Phiên cược không tồn tại");
@@ -216,9 +260,9 @@ class BettingSessionService {
     required double amount,
     required double oddsAtTime,
   }) async {
-    final sessionRef = _firestore.collection('betting_sessions').doc(sessionId);
+    final sessionRef = _firestore.collection(sessionCollection).doc(sessionId);
     final walletRef = _firestore.collection('wallets').doc(userId);
-    final betRef = _firestore.collection('bets').doc();
+    final betRef = _firestore.collection(betCollection).doc();
     final txRef = _firestore.collection('transactions').doc();
 
     return await _firestore.runTransaction((transaction) async {
@@ -243,8 +287,9 @@ class BettingSessionService {
         throw Exception("Số dư khả dụng không đủ");
       }
 
+      // Chỉ khóa tiền (tăng lockedAmount), không trừ balance ngay
+      // → availableBalance = balance - lockedAmount hiển thị đúng (chỉ trừ 1 lần)
       transaction.update(walletRef, {
-        'balance': balance - amount,
         'lockedAmount': lockedAmount + amount,
       });
 
@@ -287,7 +332,7 @@ class BettingSessionService {
     String userId, {
     DocumentSnapshot? lastDoc,
   }) async {
-    Query query = _firestore.collection('bets')
+    Query query = _firestore.collection(betCollection)
         .where('userId', isEqualTo: userId)
         .where('status', whereIn: ['won', 'lost', 'push'])
         .orderBy('createdAt', descending: true)
@@ -303,7 +348,7 @@ class BettingSessionService {
 
   // Lắng nghe các đơn cược đang chờ giải quyết của người dùng
   Stream<List<BetModel>> watchUserPendingBets(String userId) {
-    return _firestore.collection('bets')
+    return _firestore.collection(betCollection)
         .where('userId', isEqualTo: userId)
         .where('status', isEqualTo: 'pending')
         .snapshots()
@@ -317,7 +362,7 @@ class BettingSessionService {
     required double oddsUnder,
     required double overUnderLine,
   }) async {
-    await _firestore.collection('betting_sessions').doc(sessionId).update({
+    await _firestore.collection(sessionCollection).doc(sessionId).update({
       'oddsOver': oddsOver,
       'oddsUnder': oddsUnder,
       'overUnderLine': overUnderLine,
@@ -329,7 +374,7 @@ class BettingSessionService {
     required String betId,
     required String newStatus,
   }) async {
-    final betRef = _firestore.collection('bets').doc(betId);
+    final betRef = _firestore.collection(betCollection).doc(betId);
     
     await _firestore.runTransaction((transaction) async {
       final betSnap = await transaction.get(betRef);
@@ -382,13 +427,13 @@ class BettingSessionService {
     required String sessionId,
     required String newResult,
   }) async {
-    final sessionRef = _firestore.collection('betting_sessions').doc(sessionId);
+    final sessionRef = _firestore.collection(sessionCollection).doc(sessionId);
 
     await _firestore.runTransaction((transaction) async {
       final sessionSnap = await transaction.get(sessionRef);
       if (!sessionSnap.exists) throw Exception("Phiên cược không tồn tại");
 
-      final query = await _firestore.collection('bets')
+      final query = await _firestore.collection(betCollection)
           .where('sessionId', isEqualTo: sessionId)
           .get();
 
@@ -444,5 +489,28 @@ class BettingSessionService {
         'status': 'settled',
       });
     });
+  }
+
+  // Lấy N phiên cược đã kết toán gần nhất (để hiển thị lịch sử 10 phiên)
+  Future<List<BettingSessionModel>> getRecentSessions({int limit = 10}) async {
+    final snap = await _firestore
+        .collection(sessionCollection)
+        .where('status', isEqualTo: 'settled')
+        .orderBy('sessionNumber', descending: true)
+        .limit(limit)
+        .get();
+    return snap.docs.map((doc) => BettingSessionModel.fromFirestore(doc)).toList();
+  }
+
+  // Stream realtime N phiên gần nhất
+  Stream<List<BettingSessionModel>> watchRecentSessions({int limit = 10}) {
+    return _firestore
+        .collection(sessionCollection)
+        .where('status', isEqualTo: 'settled')
+        .orderBy('sessionNumber', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((snap) =>
+            snap.docs.map((doc) => BettingSessionModel.fromFirestore(doc)).toList());
   }
 }

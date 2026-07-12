@@ -16,16 +16,8 @@ final _privateConstructorUsedError = UnsupportedError(
 
 /// @nodoc
 mixin _$BetState {
-// Phiên cược Tài Xỉu đang active
-  BettingSessionModel? get activeSession =>
-      throw _privateConstructorUsedError; // Countdown còn lại của phiên (60 → 0)
-  int get countdown =>
-      throw _privateConstructorUsedError; // Trạng thái phiên hiện tại
-  SessionStatus get sessionStatus =>
-      throw _privateConstructorUsedError; // Đơn cược nháp đang nhập (chưa confirm)
+// Đơn cược nháp đang nhập (chưa confirm)
   BetDraftModel? get currentDraft =>
-      throw _privateConstructorUsedError; // Danh sách cược của user trong phiên hiện tại
-  List<BetModel> get currentSessionBets =>
       throw _privateConstructorUsedError; // Lịch sử cược đã kết thúc
   List<BetModel> get settledBets =>
       throw _privateConstructorUsedError; // Danh sách cược đang pending của bóng đá (giữ lại để tương thích)
@@ -48,11 +40,7 @@ abstract class $BetStateCopyWith<$Res> {
       _$BetStateCopyWithImpl<$Res, BetState>;
   @useResult
   $Res call(
-      {BettingSessionModel? activeSession,
-      int countdown,
-      SessionStatus sessionStatus,
-      BetDraftModel? currentDraft,
-      List<BetModel> currentSessionBets,
+      {BetDraftModel? currentDraft,
       List<BetModel> settledBets,
       List<BetModel> pendingBets,
       bool isSubmitting,
@@ -60,7 +48,6 @@ abstract class $BetStateCopyWith<$Res> {
       String? errorMessage,
       String? successMessage});
 
-  $BettingSessionModelCopyWith<$Res>? get activeSession;
   $BetDraftModelCopyWith<$Res>? get currentDraft;
 }
 
@@ -79,11 +66,7 @@ class _$BetStateCopyWithImpl<$Res, $Val extends BetState>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? activeSession = freezed,
-    Object? countdown = null,
-    Object? sessionStatus = null,
     Object? currentDraft = freezed,
-    Object? currentSessionBets = null,
     Object? settledBets = null,
     Object? pendingBets = null,
     Object? isSubmitting = null,
@@ -92,26 +75,10 @@ class _$BetStateCopyWithImpl<$Res, $Val extends BetState>
     Object? successMessage = freezed,
   }) {
     return _then(_value.copyWith(
-      activeSession: freezed == activeSession
-          ? _value.activeSession
-          : activeSession // ignore: cast_nullable_to_non_nullable
-              as BettingSessionModel?,
-      countdown: null == countdown
-          ? _value.countdown
-          : countdown // ignore: cast_nullable_to_non_nullable
-              as int,
-      sessionStatus: null == sessionStatus
-          ? _value.sessionStatus
-          : sessionStatus // ignore: cast_nullable_to_non_nullable
-              as SessionStatus,
       currentDraft: freezed == currentDraft
           ? _value.currentDraft
           : currentDraft // ignore: cast_nullable_to_non_nullable
               as BetDraftModel?,
-      currentSessionBets: null == currentSessionBets
-          ? _value.currentSessionBets
-          : currentSessionBets // ignore: cast_nullable_to_non_nullable
-              as List<BetModel>,
       settledBets: null == settledBets
           ? _value.settledBets
           : settledBets // ignore: cast_nullable_to_non_nullable
@@ -143,20 +110,6 @@ class _$BetStateCopyWithImpl<$Res, $Val extends BetState>
   /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
-  $BettingSessionModelCopyWith<$Res>? get activeSession {
-    if (_value.activeSession == null) {
-      return null;
-    }
-
-    return $BettingSessionModelCopyWith<$Res>(_value.activeSession!, (value) {
-      return _then(_value.copyWith(activeSession: value) as $Val);
-    });
-  }
-
-  /// Create a copy of BetState
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @pragma('vm:prefer-inline')
   $BetDraftModelCopyWith<$Res>? get currentDraft {
     if (_value.currentDraft == null) {
       return null;
@@ -177,11 +130,7 @@ abstract class _$$BetStateImplCopyWith<$Res>
   @override
   @useResult
   $Res call(
-      {BettingSessionModel? activeSession,
-      int countdown,
-      SessionStatus sessionStatus,
-      BetDraftModel? currentDraft,
-      List<BetModel> currentSessionBets,
+      {BetDraftModel? currentDraft,
       List<BetModel> settledBets,
       List<BetModel> pendingBets,
       bool isSubmitting,
@@ -189,8 +138,6 @@ abstract class _$$BetStateImplCopyWith<$Res>
       String? errorMessage,
       String? successMessage});
 
-  @override
-  $BettingSessionModelCopyWith<$Res>? get activeSession;
   @override
   $BetDraftModelCopyWith<$Res>? get currentDraft;
 }
@@ -208,11 +155,7 @@ class __$$BetStateImplCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? activeSession = freezed,
-    Object? countdown = null,
-    Object? sessionStatus = null,
     Object? currentDraft = freezed,
-    Object? currentSessionBets = null,
     Object? settledBets = null,
     Object? pendingBets = null,
     Object? isSubmitting = null,
@@ -221,26 +164,10 @@ class __$$BetStateImplCopyWithImpl<$Res>
     Object? successMessage = freezed,
   }) {
     return _then(_$BetStateImpl(
-      activeSession: freezed == activeSession
-          ? _value.activeSession
-          : activeSession // ignore: cast_nullable_to_non_nullable
-              as BettingSessionModel?,
-      countdown: null == countdown
-          ? _value.countdown
-          : countdown // ignore: cast_nullable_to_non_nullable
-              as int,
-      sessionStatus: null == sessionStatus
-          ? _value.sessionStatus
-          : sessionStatus // ignore: cast_nullable_to_non_nullable
-              as SessionStatus,
       currentDraft: freezed == currentDraft
           ? _value.currentDraft
           : currentDraft // ignore: cast_nullable_to_non_nullable
               as BetDraftModel?,
-      currentSessionBets: null == currentSessionBets
-          ? _value._currentSessionBets
-          : currentSessionBets // ignore: cast_nullable_to_non_nullable
-              as List<BetModel>,
       settledBets: null == settledBets
           ? _value._settledBets
           : settledBets // ignore: cast_nullable_to_non_nullable
@@ -273,47 +200,19 @@ class __$$BetStateImplCopyWithImpl<$Res>
 
 class _$BetStateImpl implements _BetState {
   const _$BetStateImpl(
-      {this.activeSession,
-      this.countdown = 60,
-      this.sessionStatus = SessionStatus.open,
-      this.currentDraft,
-      final List<BetModel> currentSessionBets = const [],
+      {this.currentDraft,
       final List<BetModel> settledBets = const [],
       final List<BetModel> pendingBets = const [],
       this.isSubmitting = false,
       this.isLoading = false,
       this.errorMessage,
       this.successMessage})
-      : _currentSessionBets = currentSessionBets,
-        _settledBets = settledBets,
+      : _settledBets = settledBets,
         _pendingBets = pendingBets;
 
-// Phiên cược Tài Xỉu đang active
-  @override
-  final BettingSessionModel? activeSession;
-// Countdown còn lại của phiên (60 → 0)
-  @override
-  @JsonKey()
-  final int countdown;
-// Trạng thái phiên hiện tại
-  @override
-  @JsonKey()
-  final SessionStatus sessionStatus;
 // Đơn cược nháp đang nhập (chưa confirm)
   @override
   final BetDraftModel? currentDraft;
-// Danh sách cược của user trong phiên hiện tại
-  final List<BetModel> _currentSessionBets;
-// Danh sách cược của user trong phiên hiện tại
-  @override
-  @JsonKey()
-  List<BetModel> get currentSessionBets {
-    if (_currentSessionBets is EqualUnmodifiableListView)
-      return _currentSessionBets;
-    // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_currentSessionBets);
-  }
-
 // Lịch sử cược đã kết thúc
   final List<BetModel> _settledBets;
 // Lịch sử cược đã kết thúc
@@ -349,7 +248,7 @@ class _$BetStateImpl implements _BetState {
 
   @override
   String toString() {
-    return 'BetState(activeSession: $activeSession, countdown: $countdown, sessionStatus: $sessionStatus, currentDraft: $currentDraft, currentSessionBets: $currentSessionBets, settledBets: $settledBets, pendingBets: $pendingBets, isSubmitting: $isSubmitting, isLoading: $isLoading, errorMessage: $errorMessage, successMessage: $successMessage)';
+    return 'BetState(currentDraft: $currentDraft, settledBets: $settledBets, pendingBets: $pendingBets, isSubmitting: $isSubmitting, isLoading: $isLoading, errorMessage: $errorMessage, successMessage: $successMessage)';
   }
 
   @override
@@ -357,16 +256,8 @@ class _$BetStateImpl implements _BetState {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$BetStateImpl &&
-            (identical(other.activeSession, activeSession) ||
-                other.activeSession == activeSession) &&
-            (identical(other.countdown, countdown) ||
-                other.countdown == countdown) &&
-            (identical(other.sessionStatus, sessionStatus) ||
-                other.sessionStatus == sessionStatus) &&
             (identical(other.currentDraft, currentDraft) ||
                 other.currentDraft == currentDraft) &&
-            const DeepCollectionEquality()
-                .equals(other._currentSessionBets, _currentSessionBets) &&
             const DeepCollectionEquality()
                 .equals(other._settledBets, _settledBets) &&
             const DeepCollectionEquality()
@@ -384,11 +275,7 @@ class _$BetStateImpl implements _BetState {
   @override
   int get hashCode => Object.hash(
       runtimeType,
-      activeSession,
-      countdown,
-      sessionStatus,
       currentDraft,
-      const DeepCollectionEquality().hash(_currentSessionBets),
       const DeepCollectionEquality().hash(_settledBets),
       const DeepCollectionEquality().hash(_pendingBets),
       isSubmitting,
@@ -407,11 +294,7 @@ class _$BetStateImpl implements _BetState {
 
 abstract class _BetState implements BetState {
   const factory _BetState(
-      {final BettingSessionModel? activeSession,
-      final int countdown,
-      final SessionStatus sessionStatus,
-      final BetDraftModel? currentDraft,
-      final List<BetModel> currentSessionBets,
+      {final BetDraftModel? currentDraft,
       final List<BetModel> settledBets,
       final List<BetModel> pendingBets,
       final bool isSubmitting,
@@ -419,19 +302,9 @@ abstract class _BetState implements BetState {
       final String? errorMessage,
       final String? successMessage}) = _$BetStateImpl;
 
-// Phiên cược Tài Xỉu đang active
+// Đơn cược nháp đang nhập (chưa confirm)
   @override
-  BettingSessionModel?
-      get activeSession; // Countdown còn lại của phiên (60 → 0)
-  @override
-  int get countdown; // Trạng thái phiên hiện tại
-  @override
-  SessionStatus get sessionStatus; // Đơn cược nháp đang nhập (chưa confirm)
-  @override
-  BetDraftModel?
-      get currentDraft; // Danh sách cược của user trong phiên hiện tại
-  @override
-  List<BetModel> get currentSessionBets; // Lịch sử cược đã kết thúc
+  BetDraftModel? get currentDraft; // Lịch sử cược đã kết thúc
   @override
   List<BetModel>
       get settledBets; // Danh sách cược đang pending của bóng đá (giữ lại để tương thích)

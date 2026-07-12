@@ -33,7 +33,11 @@ mixin _$BettingSessionModel {
   double get totalUnderBets => throw _privateConstructorUsedError;
   double get oddsOver => throw _privateConstructorUsedError;
   double get oddsUnder => throw _privateConstructorUsedError;
-  double get overUnderLine => throw _privateConstructorUsedError;
+  double get overUnderLine =>
+      throw _privateConstructorUsedError; // Giá trị từng con xúc xắc khi kết toán (1-6, 0 = chưa có)
+  int get dice1 => throw _privateConstructorUsedError;
+  int get dice2 => throw _privateConstructorUsedError;
+  int get dice3 => throw _privateConstructorUsedError;
 
   /// Serializes this BettingSessionModel to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -64,7 +68,10 @@ abstract class $BettingSessionModelCopyWith<$Res> {
       double totalUnderBets,
       double oddsOver,
       double oddsUnder,
-      double overUnderLine});
+      double overUnderLine,
+      int dice1,
+      int dice2,
+      int dice3});
 }
 
 /// @nodoc
@@ -95,6 +102,9 @@ class _$BettingSessionModelCopyWithImpl<$Res, $Val extends BettingSessionModel>
     Object? oddsOver = null,
     Object? oddsUnder = null,
     Object? overUnderLine = null,
+    Object? dice1 = null,
+    Object? dice2 = null,
+    Object? dice3 = null,
   }) {
     return _then(_value.copyWith(
       sessionId: null == sessionId
@@ -149,6 +159,18 @@ class _$BettingSessionModelCopyWithImpl<$Res, $Val extends BettingSessionModel>
           ? _value.overUnderLine
           : overUnderLine // ignore: cast_nullable_to_non_nullable
               as double,
+      dice1: null == dice1
+          ? _value.dice1
+          : dice1 // ignore: cast_nullable_to_non_nullable
+              as int,
+      dice2: null == dice2
+          ? _value.dice2
+          : dice2 // ignore: cast_nullable_to_non_nullable
+              as int,
+      dice3: null == dice3
+          ? _value.dice3
+          : dice3 // ignore: cast_nullable_to_non_nullable
+              as int,
     ) as $Val);
   }
 }
@@ -174,7 +196,10 @@ abstract class _$$BettingSessionModelImplCopyWith<$Res>
       double totalUnderBets,
       double oddsOver,
       double oddsUnder,
-      double overUnderLine});
+      double overUnderLine,
+      int dice1,
+      int dice2,
+      int dice3});
 }
 
 /// @nodoc
@@ -203,6 +228,9 @@ class __$$BettingSessionModelImplCopyWithImpl<$Res>
     Object? oddsOver = null,
     Object? oddsUnder = null,
     Object? overUnderLine = null,
+    Object? dice1 = null,
+    Object? dice2 = null,
+    Object? dice3 = null,
   }) {
     return _then(_$BettingSessionModelImpl(
       sessionId: null == sessionId
@@ -257,6 +285,18 @@ class __$$BettingSessionModelImplCopyWithImpl<$Res>
           ? _value.overUnderLine
           : overUnderLine // ignore: cast_nullable_to_non_nullable
               as double,
+      dice1: null == dice1
+          ? _value.dice1
+          : dice1 // ignore: cast_nullable_to_non_nullable
+              as int,
+      dice2: null == dice2
+          ? _value.dice2
+          : dice2 // ignore: cast_nullable_to_non_nullable
+              as int,
+      dice3: null == dice3
+          ? _value.dice3
+          : dice3 // ignore: cast_nullable_to_non_nullable
+              as int,
     ));
   }
 }
@@ -277,7 +317,10 @@ class _$BettingSessionModelImpl implements _BettingSessionModel {
       this.totalUnderBets = 0.0,
       this.oddsOver = 1.85,
       this.oddsUnder = 1.95,
-      this.overUnderLine = 2.5});
+      this.overUnderLine = 2.5,
+      this.dice1 = 0,
+      this.dice2 = 0,
+      this.dice3 = 0});
 
   factory _$BettingSessionModelImpl.fromJson(Map<String, dynamic> json) =>
       _$$BettingSessionModelImplFromJson(json);
@@ -315,10 +358,20 @@ class _$BettingSessionModelImpl implements _BettingSessionModel {
   @override
   @JsonKey()
   final double overUnderLine;
+// Giá trị từng con xúc xắc khi kết toán (1-6, 0 = chưa có)
+  @override
+  @JsonKey()
+  final int dice1;
+  @override
+  @JsonKey()
+  final int dice2;
+  @override
+  @JsonKey()
+  final int dice3;
 
   @override
   String toString() {
-    return 'BettingSessionModel(sessionId: $sessionId, sessionNumber: $sessionNumber, status: $status, startedAt: $startedAt, lockedAt: $lockedAt, settledAt: $settledAt, result: $result, isAdminOverride: $isAdminOverride, totalOverBets: $totalOverBets, totalUnderBets: $totalUnderBets, oddsOver: $oddsOver, oddsUnder: $oddsUnder, overUnderLine: $overUnderLine)';
+    return 'BettingSessionModel(sessionId: $sessionId, sessionNumber: $sessionNumber, status: $status, startedAt: $startedAt, lockedAt: $lockedAt, settledAt: $settledAt, result: $result, isAdminOverride: $isAdminOverride, totalOverBets: $totalOverBets, totalUnderBets: $totalUnderBets, oddsOver: $oddsOver, oddsUnder: $oddsUnder, overUnderLine: $overUnderLine, dice1: $dice1, dice2: $dice2, dice3: $dice3)';
   }
 
   @override
@@ -349,7 +402,10 @@ class _$BettingSessionModelImpl implements _BettingSessionModel {
             (identical(other.oddsUnder, oddsUnder) ||
                 other.oddsUnder == oddsUnder) &&
             (identical(other.overUnderLine, overUnderLine) ||
-                other.overUnderLine == overUnderLine));
+                other.overUnderLine == overUnderLine) &&
+            (identical(other.dice1, dice1) || other.dice1 == dice1) &&
+            (identical(other.dice2, dice2) || other.dice2 == dice2) &&
+            (identical(other.dice3, dice3) || other.dice3 == dice3));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -368,7 +424,10 @@ class _$BettingSessionModelImpl implements _BettingSessionModel {
       totalUnderBets,
       oddsOver,
       oddsUnder,
-      overUnderLine);
+      overUnderLine,
+      dice1,
+      dice2,
+      dice3);
 
   /// Create a copy of BettingSessionModel
   /// with the given fields replaced by the non-null parameter values.
@@ -401,7 +460,10 @@ abstract class _BettingSessionModel implements BettingSessionModel {
       final double totalUnderBets,
       final double oddsOver,
       final double oddsUnder,
-      final double overUnderLine}) = _$BettingSessionModelImpl;
+      final double overUnderLine,
+      final int dice1,
+      final int dice2,
+      final int dice3}) = _$BettingSessionModelImpl;
 
   factory _BettingSessionModel.fromJson(Map<String, dynamic> json) =
       _$BettingSessionModelImpl.fromJson;
@@ -431,7 +493,14 @@ abstract class _BettingSessionModel implements BettingSessionModel {
   @override
   double get oddsUnder;
   @override
-  double get overUnderLine;
+  double
+      get overUnderLine; // Giá trị từng con xúc xắc khi kết toán (1-6, 0 = chưa có)
+  @override
+  int get dice1;
+  @override
+  int get dice2;
+  @override
+  int get dice3;
 
   /// Create a copy of BettingSessionModel
   /// with the given fields replaced by the non-null parameter values.

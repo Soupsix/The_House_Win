@@ -26,6 +26,9 @@ _$BettingSessionModelImpl _$$BettingSessionModelImplFromJson(
       oddsOver: (json['oddsOver'] as num?)?.toDouble() ?? 1.85,
       oddsUnder: (json['oddsUnder'] as num?)?.toDouble() ?? 1.95,
       overUnderLine: (json['overUnderLine'] as num?)?.toDouble() ?? 2.5,
+      dice1: (json['dice1'] as num?)?.toInt() ?? 0,
+      dice2: (json['dice2'] as num?)?.toInt() ?? 0,
+      dice3: (json['dice3'] as num?)?.toInt() ?? 0,
     );
 
 Map<String, dynamic> _$$BettingSessionModelImplToJson(
@@ -44,6 +47,9 @@ Map<String, dynamic> _$$BettingSessionModelImplToJson(
       'oddsOver': instance.oddsOver,
       'oddsUnder': instance.oddsUnder,
       'overUnderLine': instance.overUnderLine,
+      'dice1': instance.dice1,
+      'dice2': instance.dice2,
+      'dice3': instance.dice3,
     };
 
 const _$SessionStatusEnumMap = {
