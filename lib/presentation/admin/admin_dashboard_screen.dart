@@ -42,6 +42,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   // Create simulated match controllers
   final TextEditingController _homeController = TextEditingController();
   final TextEditingController _awayController = TextEditingController();
+
   Future<void> _confirmApproveWithdrawal({
     required AdminNotifier adminNotifier,
     required String requestId,
@@ -545,16 +546,24 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ),
             ),
           ),
-          const Row(
+          Row(
             children: [
-              IconButton(
-                icon: Icon(Icons.notifications_none, color: Color(0xFFE2E2E2)),
+              const IconButton(
+                icon: Icon(
+                  Icons.notifications_none,
+                  color: Color(0xFFE2E2E2),
+                ),
                 onPressed: null,
               ),
               IconButton(
-                icon: Icon(Icons.settings_outlined, color: Color(0xFFE2E2E2)),
-                onPressed: null,
-              ),
+                  icon: const Icon(
+                    Icons.settings_outlined,
+                    color: Color(0xFFE2E2E2),
+                  ),
+                  tooltip: 'Cấu hình Admin',
+                  onPressed: () {
+                    _showAdminSettingsDialog(context);
+                  }),
             ],
           ),
         ],
@@ -589,7 +598,20 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.logout, color: Color(0xFFFC536D)),
+                icon: const Icon(
+                  Icons.settings_outlined,
+                  color: Color(0xFFE2E2E2),
+                ),
+                tooltip: 'Cấu hình Admin',
+                onPressed: () {
+                  _showAdminSettingsDialog(context);
+                },
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.logout,
+                  color: Color(0xFFFC536D),
+                ),
                 onPressed: () {
                   ref.read(authProvider.notifier).signOut();
                 },
@@ -597,7 +619,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               GestureDetector(
                 onTap: () {
                   setState(() {
-                    _currentTab = 1; // Switch to player list
+                    _currentTab = 1;
                   });
                 },
                 child: CircleAvatar(
@@ -608,9 +630,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         ? currentUser!.displayName[0].toUpperCase()
                         : 'A',
                     style: const TextStyle(
-                        color: Color(0xFFFFB2B7),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13),
+                      color: Color(0xFFFFB2B7),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
               ),
@@ -645,7 +668,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       case 1:
         return _buildPlayersTab(adminState, adminNotifier);
       case 2:
-        return _buildMatchesTab(liveMatches, scheduledMatches);
+        return _buildMatchesTab(
+          adminState,
+          adminNotifier,
+          liveMatches,
+          scheduledMatches,
+        );
       case 3:
         return _buildLogsTab(adminState);
       default:
@@ -775,14 +803,49 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       ),
                     ],
                   ),
-                  TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _currentTab = 1;
-                      });
-                    },
-                    child: const Text('Xem tất cả',
-                        style: TextStyle(color: Color(0xFFFFB2B7))),
+                  Row(
+                    children: [
+                      if (adminState.users.isNotEmpty)
+                        TextButton.icon(
+                          onPressed: () async {
+                            final firstUser = adminState.users.first;
+                            try {
+                              await adminNotifier.seedMockRequests(
+                                firstUser.uid,
+                                firstUser.displayName,
+                              );
+                            } catch (error) {
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Không thể tạo dữ liệu mẫu: $error',
+                                  ),
+                                  backgroundColor: const Color(0xFFFC536D),
+                                ),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.add, size: 14),
+                          label: const Text('Seed Mock',
+                              style: TextStyle(fontSize: 11)),
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFFFFB2B7),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                          ),
+                        ),
+                      const SizedBox(width: 8),
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _currentTab = 1; // Switch to player list
+                          });
+                        },
+                        child: const Text('Xem tất cả',
+                            style: TextStyle(color: Color(0xFFFFB2B7))),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -834,11 +897,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         children: [
                           CircleAvatar(
                             radius: 20,
-                            backgroundColor: const Color(0xFFFFB2B7).withValues(
-                              alpha: 0.1,
-                            ),
+                            backgroundColor:
+                                const Color(0xFFFFB2B7).withOpacity(0.1),
                             child: Text(
-                              displayName[0].toUpperCase(),
+                              displayName.isNotEmpty
+                                  ? displayName[0].toUpperCase()
+                                  : 'U',
                               style: const TextStyle(
                                 color: Color(0xFFFFB2B7),
                                 fontWeight: FontWeight.bold,
@@ -1015,7 +1079,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   itemCount: liveMatches.length,
                   itemBuilder: (context, index) {
                     final match = liveMatches[index];
-                    return _buildMatchAdminCard(match);
+                    return _buildMatchAdminCard(
+                      match,
+                      adminState,
+                      adminNotifier,
+                    );
                   },
                 ),
             ],
@@ -1263,9 +1331,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             final user = filteredUsers[index];
             final balance = adminState.userBalances[user.uid] ?? 0.0;
 
-            // Extra metrics safely from Firestore data
-            // Since freezed creates raw fields, let's use manual logic if needed.
-            // Currently UserModel has fields: uid, email, displayName, isAdmin, createdAt, phoneNumber.
             return Container(
               margin: const EdgeInsets.only(bottom: 16),
               child: _buildGlassCard(
@@ -1398,22 +1463,24 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           onPressed: () => _showEditBalanceDialog(
                               context, adminNotifier, user, balance),
                         ),
-                        if (!user.isAdmin)
-                          // Toggle Admin privilege
-                          OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFFFFB95A),
-                              side: const BorderSide(color: Color(0xFFFFB95A)),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8)),
-                            ),
-                            icon: const Icon(Icons.admin_panel_settings,
-                                size: 16),
-                            label: const Text('Cấp Admin'),
-                            onPressed: () {
-                              adminNotifier.toggleAdminStatus(user.uid, true);
-                            },
+                        const SizedBox(width: 12),
+                        // Toggle Admin privilege
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFFFB95A),
+                            side: const BorderSide(color: Color(0xFFFFB95A)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
                           ),
+                          icon:
+                              const Icon(Icons.admin_panel_settings, size: 16),
+                          label: Text(
+                              user.isAdmin ? 'Thu hồi Admin' : 'Cấp Admin'),
+                          onPressed: () {
+                            adminNotifier.toggleAdminStatus(
+                                user.uid, !user.isAdmin);
+                          },
+                        ),
                       ],
                     ),
                   ],
@@ -1508,8 +1575,74 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   // ==========================================
   // VIEW: TAB 2 - MATCHES MANAGEMENT VIEW
   // ==========================================
+  MatchModel _matchFromAdminMap(
+    Map<String, dynamic> data,
+  ) {
+    final statusName = data['status']?.toString() ?? MatchStatus.scheduled.name;
+
+    final status = MatchStatus.values.firstWhere(
+      (item) => item.name == statusName,
+      orElse: () => MatchStatus.scheduled,
+    );
+
+    MatchResult? result;
+    final resultName = data['result']?.toString();
+
+    if (resultName != null && resultName.isNotEmpty) {
+      result = MatchResult.values.firstWhere(
+        (item) => item.name == resultName,
+        orElse: () => MatchResult.push,
+      );
+    }
+
+    final rawDate = data['utcDate'];
+    DateTime utcDate = DateTime.now();
+
+    if (rawDate is DateTime) {
+      utcDate = rawDate;
+    } else if (rawDate is String) {
+      utcDate = DateTime.tryParse(rawDate) ?? DateTime.now();
+    }
+
+    return MatchModel(
+      id: data['id']?.toString() ?? '',
+      homeTeam: data['homeTeam']?.toString() ?? '',
+      awayTeam: data['awayTeam']?.toString() ?? '',
+      utcDate: utcDate,
+      status: status,
+      scoreHome: (data['scoreHome'] as num?)?.toInt() ?? 0,
+      scoreAway: (data['scoreAway'] as num?)?.toInt() ?? 0,
+      result: result,
+      oddsOver: (data['oddsOver'] as num?)?.toDouble() ?? 1.85,
+      oddsUnder: (data['oddsUnder'] as num?)?.toDouble() ?? 1.95,
+      overUnderLine: (data['overUnderLine'] as num?)?.toDouble() ?? 2.5,
+      isSimulated: data['isSimulated'] as bool? ?? false,
+    );
+  }
+
   Widget _buildMatchesTab(
-      List<MatchModel> liveMatches, List<MatchModel> scheduledMatches) {
+    AdminState adminState,
+    AdminNotifier adminNotifier,
+    List<MatchModel> ignoredLiveMatches,
+    List<MatchModel> ignoredScheduledMatches,
+  ) {
+    final allMatches = adminState.matches
+        .map(_matchFromAdminMap)
+        .where((match) => match.id.isNotEmpty)
+        .toList();
+
+    final liveMatches = allMatches
+        .where(
+          (match) => match.status == MatchStatus.inPlay,
+        )
+        .toList();
+
+    final scheduledMatches = allMatches
+        .where(
+          (match) => match.status == MatchStatus.scheduled,
+        )
+        .toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1568,7 +1701,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             itemCount: liveMatches.length,
             itemBuilder: (context, index) {
               final match = liveMatches[index];
-              return _buildMatchAdminCard(match);
+              return _buildMatchAdminCard(
+                match,
+                adminState,
+                adminNotifier,
+              );
             },
           ),
           const SizedBox(height: 24),
@@ -1588,7 +1725,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             itemCount: scheduledMatches.length,
             itemBuilder: (context, index) {
               final match = scheduledMatches[index];
-              return _buildMatchAdminCard(match);
+              return _buildMatchAdminCard(
+                match,
+                adminState,
+                adminNotifier,
+              );
             },
           ),
         ],
@@ -1607,9 +1748,21 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildMatchAdminCard(MatchModel match) {
+  Widget _buildMatchAdminCard(
+    MatchModel match,
+    AdminState adminState,
+    AdminNotifier adminNotifier,
+  ) {
     final format = DateFormat('dd/MM HH:mm');
     final timeStr = format.format(match.utcDate);
+    final firestoreMatch =
+        adminState.matches.cast<Map<String, dynamic>?>().firstWhere(
+              (item) => item?['id']?.toString() == match.id,
+              orElse: () => null,
+            );
+
+    final isBettingLocked =
+        firestoreMatch?['isBettingLocked'] as bool? ?? false;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -1756,9 +1909,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            Row(
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
               children: [
-                Expanded(
+                SizedBox(
+                  width: 180,
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFFFFB2B7),
@@ -1768,11 +1924,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     ),
                     icon: const Icon(Icons.edit, size: 16),
                     label: const Text('Sửa kèo'),
-                    onPressed: () => _showEditOddsDialog(context, match),
+                    onPressed: () => _showEditOddsDialog(
+                      context,
+                      match,
+                      adminNotifier,
+                    ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
+                SizedBox(
+                  width: 180,
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFFB95A),
@@ -1781,8 +1941,40 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           borderRadius: BorderRadius.circular(8)),
                     ),
                     icon: const Icon(Icons.gavel, size: 16),
-                    label: const Text('Cưỡng chế'),
-                    onPressed: () => _showOverrideDialog(context, match),
+                    label: const Text('Sửa kết quả'),
+                    onPressed: () => _showOverrideDialog(
+                      context,
+                      match,
+                      adminNotifier,
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: 180,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isBettingLocked
+                          ? const Color(0xFF28DFB5)
+                          : const Color(0xFFFC536D),
+                      foregroundColor:
+                          isBettingLocked ? Colors.black : Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    icon: Icon(
+                      isBettingLocked ? Icons.lock_open : Icons.lock,
+                      size: 16,
+                    ),
+                    label: Text(
+                      isBettingLocked ? 'Mở cược' : 'Khóa cược',
+                    ),
+                    onPressed: () {
+                      adminNotifier.updateMatchBettingLock(
+                        matchId: match.id,
+                        isLocked: !isBettingLocked,
+                      );
+                    },
                   ),
                 ),
               ],
@@ -1794,7 +1986,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   // Edit Odds Dialog
-  void _showEditOddsDialog(BuildContext context, MatchModel match) {
+  void _showEditOddsDialog(
+    BuildContext context,
+    MatchModel match,
+    AdminNotifier adminNotifier,
+  ) {
     _oddsOverController.text = match.oddsOver.toString();
     _oddsUnderController.text = match.oddsUnder.toString();
     _lineController.text = match.overUnderLine.toString();
@@ -1810,7 +2006,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           children: [
             TextField(
               controller: _lineController,
-              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               style: const TextStyle(color: Colors.white),
               decoration: const InputDecoration(
                 labelText: 'Mốc Tài Xỉu (ví dụ: 2.5)',
@@ -1819,7 +2016,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
             TextField(
               controller: _oddsOverController,
-              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               style: const TextStyle(color: Colors.white),
               decoration: const InputDecoration(
                 labelText: 'Odds Tài (ví dụ: 1.85)',
@@ -1828,7 +2026,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
             TextField(
               controller: _oddsUnderController,
-              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               style: const TextStyle(color: Colors.white),
               decoration: const InputDecoration(
                 labelText: 'Odds Xỉu (ví dụ: 1.95)',
@@ -1855,12 +2054,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               final under =
                   double.tryParse(_oddsUnderController.text) ?? match.oddsUnder;
 
-              ref.read(matchProvider.notifier).adminUpdateOdds(
-                    matchId: match.id,
-                    oddsOver: over,
-                    oddsUnder: under,
-                    overUnderLine: line,
-                  );
+              adminNotifier.updateMatchOdds(
+                matchId: match.id,
+                overOdds: over,
+                underOdds: under,
+                line: line,
+              );
               Navigator.pop(context);
             },
           ),
@@ -1870,7 +2069,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   // Result Override Dialog
-  void _showOverrideDialog(BuildContext context, MatchModel match) {
+  void _showOverrideDialog(
+    BuildContext context,
+    MatchModel match,
+    AdminNotifier adminNotifier,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1890,9 +2093,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     backgroundColor: const Color(0xFFFC536D),
                     foregroundColor: Colors.white),
                 onPressed: () {
-                  ref
-                      .read(matchProvider.notifier)
-                      .adminOverrideResult(match.id, MatchResult.over);
+                  adminNotifier.forceMatchResult(
+                    matchId: match.id,
+                    result: 'over',
+                  );
                   Navigator.pop(context);
                 },
                 child: const Text('TÀI (OVER)'),
@@ -1903,9 +2107,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     backgroundColor: const Color(0xFFFFB95A),
                     foregroundColor: Colors.black),
                 onPressed: () {
-                  ref
-                      .read(matchProvider.notifier)
-                      .adminOverrideResult(match.id, MatchResult.push);
+                  adminNotifier.forceMatchResult(
+                    matchId: match.id,
+                    result: 'draw',
+                  );
                   Navigator.pop(context);
                 },
                 child: const Text('HÒA (PUSH)'),
@@ -1916,9 +2121,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     backgroundColor: const Color(0xFF28DFB5),
                     foregroundColor: Colors.black),
                 onPressed: () {
-                  ref
-                      .read(matchProvider.notifier)
-                      .adminOverrideResult(match.id, MatchResult.under);
+                  adminNotifier.forceMatchResult(
+                    matchId: match.id,
+                    result: 'under',
+                  );
                   Navigator.pop(context);
                 },
                 child: const Text('XỈU (UNDER)'),
@@ -2176,14 +2382,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               Color actionColor = const Color(0xFFFFB2B7);
               IconData icon = Icons.info_outline;
 
-              if (action == 'OVERRIDE_MATCH_RESULT') {
+              if (action == 'OVERRIDE_MATCH_RESULT' ||
+                  action == 'FORCE_RESULT') {
                 message =
                     'Ghi đè kết quả trận đấu ${details['matchId']} thành: ${details['result']}';
                 actionColor = const Color(0xFFFFB95A);
                 icon = Icons.gavel;
-              } else if (action == 'UPDATE_MATCH_ODDS') {
+              } else if (action == 'UPDATE_MATCH_ODDS' ||
+                  action == 'UPDATE_ODDS') {
                 message =
-                    'Chỉnh sửa tỷ lệ cược trận ${details['matchId']}: Tài/Xỉu mốc ${details['overUnderLine']} (Odds: ${details['oddsOver']} / ${details['oddsUnder']})';
+                    'Chỉnh sửa tỷ lệ cược trận ${details['matchId']}: Tài/Xỉu mốc ${details['overUnderLine'] ?? ''}';
                 actionColor = const Color(0xFFFFB2B7);
                 icon = Icons.edit_note;
               } else if (action == 'OVERRIDE_BET_STATUS') {
@@ -2257,6 +2465,919 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             },
           ),
       ],
+    );
+  }
+
+  void _showAdminSettingsDialog(BuildContext context) {
+    final adminState = ref.read(adminProvider);
+    final currentUser = ref.read(currentUserProvider);
+
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Không tìm thấy tài khoản Admin hiện tại.'),
+          backgroundColor: Color(0xFFFC536D),
+        ),
+      );
+      return;
+    }
+
+    final antiSettings = adminState.antiGamblingSettings;
+    final educationContent = adminState.educationContent;
+
+    bool antiEnabled = antiSettings['enabled'] as bool? ?? true;
+
+    bool educationEnabled = educationContent['enabled'] as bool? ?? true;
+
+    final warningController = TextEditingController(
+      text: ((antiSettings['warningLossThreshold'] as num?)?.toDouble() ?? 30.0)
+          .toStringAsFixed(0),
+    );
+
+    final criticalController = TextEditingController(
+      text:
+          ((antiSettings['criticalLossThreshold'] as num?)?.toDouble() ?? 50.0)
+              .toStringAsFixed(0),
+    );
+
+    final maximumBetsController = TextEditingController(
+      text: ((antiSettings['maximumBetsPerDay'] as num?)?.toInt() ?? 20)
+          .toString(),
+    );
+
+    final breakMinutesController = TextEditingController(
+      text: ((antiSettings['breakMinutes'] as num?)?.toInt() ?? 15).toString(),
+    );
+
+    final titleController = TextEditingController(
+      text: educationContent['title']?.toString() ??
+          'Hãy dừng lại trước khi quá muộn',
+    );
+
+    final descriptionController = TextEditingController(
+      text: educationContent['description']?.toString() ??
+          'Cá cược không phải là cách kiếm tiền. '
+              'Khi bạn cố gỡ lại số tiền đã mất, nguy cơ thua lỗ '
+              'và mất kiểm soát sẽ ngày càng cao.',
+    );
+
+    final videoUrlController = TextEditingController(
+      text: educationContent['videoUrl']?.toString() ?? '',
+    );
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final screenWidth = MediaQuery.of(context).size.width;
+
+            final dialogWidth = screenWidth > 700 ? 650.0 : screenWidth * 0.92;
+
+            return AlertDialog(
+              backgroundColor: const Color(0xFF1E2020),
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 24,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide(
+                  color: const Color(0xFFFFB2B7).withOpacity(0.18),
+                ),
+              ),
+              titlePadding: const EdgeInsets.fromLTRB(
+                24,
+                22,
+                16,
+                8,
+              ),
+              contentPadding: const EdgeInsets.fromLTRB(
+                24,
+                8,
+                24,
+                8,
+              ),
+              actionsPadding: const EdgeInsets.fromLTRB(
+                24,
+                8,
+                24,
+                20,
+              ),
+              title: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFB2B7).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.admin_panel_settings_outlined,
+                      color: Color(0xFFFFB2B7),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Cấu hình hệ thống',
+                          style: TextStyle(
+                            color: Color(0xFFE2E2E2),
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Inter',
+                          ),
+                        ),
+                        SizedBox(height: 3),
+                        Text(
+                          'Anti-Gambling và nội dung giáo dục',
+                          style: TextStyle(
+                            color: Color(0xFFE2BEBF),
+                            fontSize: 12,
+                            fontWeight: FontWeight.normal,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () {
+                      Navigator.pop(dialogContext);
+                    },
+                    icon: const Icon(
+                      Icons.close,
+                      color: Color(0xFFE2BEBF),
+                    ),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: dialogWidth,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSettingsSectionHeader(
+                        icon: Icons.health_and_safety_outlined,
+                        title: '11.8 - Cấu hình Anti-Gambling',
+                        description: 'Thiết lập các giới hạn giúp cảnh báo '
+                            'và giảm hành vi cá cược mất kiểm soát.',
+                        color: const Color(0xFFFC536D),
+                      ),
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF121414),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: const Color(0xFFA9898A).withOpacity(0.15),
+                          ),
+                        ),
+                        child: SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: antiEnabled,
+                          activeThumbColor: const Color(0xFF28DFB5),
+                          activeTrackColor:
+                              const Color(0xFF28DFB5).withOpacity(0.35),
+                          title: const Text(
+                            'Bật hệ thống Anti-Gambling',
+                            style: TextStyle(
+                              color: Color(0xFFE2E2E2),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          subtitle: Text(
+                            antiEnabled
+                                ? 'Hệ thống cảnh báo đang hoạt động'
+                                : 'Hệ thống cảnh báo đang tạm tắt',
+                            style: TextStyle(
+                              color: antiEnabled
+                                  ? const Color(0xFF28DFB5)
+                                  : const Color(0xFFE2BEBF),
+                              fontSize: 12,
+                            ),
+                          ),
+                          onChanged: (value) {
+                            setDialogState(() {
+                              antiEnabled = value;
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isWide = constraints.maxWidth >= 520;
+
+                          final warningField = _buildSettingsNumberField(
+                            controller: warningController,
+                            label: 'Ngưỡng cảnh báo',
+                            hintText: 'Ví dụ: 30',
+                            suffixText: '%',
+                            icon: Icons.warning_amber_rounded,
+                            enabled: antiEnabled,
+                          );
+
+                          final criticalField = _buildSettingsNumberField(
+                            controller: criticalController,
+                            label: 'Ngưỡng nguy hiểm',
+                            hintText: 'Ví dụ: 50',
+                            suffixText: '%',
+                            icon: Icons.dangerous_outlined,
+                            enabled: antiEnabled,
+                          );
+
+                          if (isWide) {
+                            return Row(
+                              children: [
+                                Expanded(child: warningField),
+                                const SizedBox(width: 12),
+                                Expanded(child: criticalField),
+                              ],
+                            );
+                          }
+
+                          return Column(
+                            children: [
+                              warningField,
+                              const SizedBox(height: 12),
+                              criticalField,
+                            ],
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isWide = constraints.maxWidth >= 520;
+
+                          final maximumField = _buildSettingsNumberField(
+                            controller: maximumBetsController,
+                            label: 'Số cược tối đa/ngày',
+                            hintText: 'Ví dụ: 20',
+                            suffixText: 'cược',
+                            icon: Icons.receipt_long_outlined,
+                            enabled: antiEnabled,
+                            allowDecimal: false,
+                          );
+
+                          final breakField = _buildSettingsNumberField(
+                            controller: breakMinutesController,
+                            label: 'Thời gian nghỉ bắt buộc',
+                            hintText: 'Ví dụ: 15',
+                            suffixText: 'phút',
+                            icon: Icons.timer_outlined,
+                            enabled: antiEnabled,
+                            allowDecimal: false,
+                          );
+
+                          if (isWide) {
+                            return Row(
+                              children: [
+                                Expanded(child: maximumField),
+                                const SizedBox(width: 12),
+                                Expanded(child: breakField),
+                              ],
+                            );
+                          }
+
+                          return Column(
+                            children: [
+                              maximumField,
+                              const SizedBox(height: 12),
+                              breakField,
+                            ],
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(13),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFB95A).withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFFFFB95A).withOpacity(0.28),
+                          ),
+                        ),
+                        child: const Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: Color(0xFFFFB95A),
+                              size: 19,
+                            ),
+                            SizedBox(width: 9),
+                            Expanded(
+                              child: Text(
+                                'Ngưỡng nguy hiểm phải lớn hơn hoặc '
+                                'bằng ngưỡng cảnh báo. Các tỷ lệ được '
+                                'tính theo phần trăm thua lỗ.',
+                                style: TextStyle(
+                                  color: Color(0xFFE2BEBF),
+                                  fontSize: 12,
+                                  height: 1.45,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 26),
+                      Divider(
+                        color: const Color(0xFFA9898A).withOpacity(0.18),
+                      ),
+                      const SizedBox(height: 20),
+                      _buildSettingsSectionHeader(
+                        icon: Icons.school_outlined,
+                        title: '11.9 - Nội dung giáo dục',
+                        description: 'Quản lý nội dung cảnh báo và video '
+                            'giáo dục hiển thị cho người chơi.',
+                        color: const Color(0xFFFFB95A),
+                      ),
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF121414),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: const Color(0xFFA9898A).withOpacity(0.15),
+                          ),
+                        ),
+                        child: SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: educationEnabled,
+                          activeThumbColor: const Color(0xFF28DFB5),
+                          activeTrackColor:
+                              const Color(0xFF28DFB5).withOpacity(0.35),
+                          title: const Text(
+                            'Hiển thị nội dung giáo dục',
+                            style: TextStyle(
+                              color: Color(0xFFE2E2E2),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          subtitle: Text(
+                            educationEnabled
+                                ? 'Nội dung đang được hiển thị'
+                                : 'Nội dung đang bị ẩn',
+                            style: TextStyle(
+                              color: educationEnabled
+                                  ? const Color(0xFF28DFB5)
+                                  : const Color(0xFFE2BEBF),
+                              fontSize: 12,
+                            ),
+                          ),
+                          onChanged: (value) {
+                            setDialogState(() {
+                              educationEnabled = value;
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      _buildSettingsTextField(
+                        controller: titleController,
+                        label: 'Tiêu đề cảnh báo',
+                        hintText: 'Ví dụ: Hãy dừng lại trước khi quá muộn',
+                        icon: Icons.title,
+                        enabled: educationEnabled,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildSettingsTextField(
+                        controller: descriptionController,
+                        label: 'Nội dung giáo dục',
+                        hintText: 'Nhập nội dung cảnh báo dành cho người chơi',
+                        icon: Icons.article_outlined,
+                        enabled: educationEnabled,
+                        maxLines: 5,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildSettingsTextField(
+                        controller: videoUrlController,
+                        label: 'Link video giáo dục',
+                        hintText:
+                            'https://youtube.com/... hoặc https://tiktok.com/...',
+                        icon: Icons.video_library_outlined,
+                        enabled: educationEnabled,
+                        keyboardType: TextInputType.url,
+                      ),
+                      const SizedBox(height: 14),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF121414),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: const Color(0xFFA9898A).withOpacity(0.15),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(
+                                  Icons.preview_outlined,
+                                  color: Color(0xFFFFB2B7),
+                                  size: 20,
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Xem trước nội dung',
+                                  style: TextStyle(
+                                    color: Color(0xFFE2E2E2),
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              titleController.text.trim().isEmpty
+                                  ? 'Chưa có tiêu đề'
+                                  : titleController.text.trim(),
+                              style: const TextStyle(
+                                color: Color(0xFFFFB95A),
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 7),
+                            Text(
+                              descriptionController.text.trim().isEmpty
+                                  ? 'Chưa có nội dung giáo dục'
+                                  : descriptionController.text.trim(),
+                              style: const TextStyle(
+                                color: Color(0xFFE2BEBF),
+                                fontSize: 13,
+                                height: 1.5,
+                              ),
+                            ),
+                            if (videoUrlController.text.trim().isNotEmpty) ...[
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.link,
+                                    color: Color(0xFF28DFB5),
+                                    size: 17,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      videoUrlController.text.trim(),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Color(0xFF28DFB5),
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                  },
+                  child: const Text(
+                    'Hủy',
+                    style: TextStyle(
+                      color: Color(0xFFE2BEBF),
+                    ),
+                  ),
+                ),
+                Consumer(
+                  builder: (context, ref, child) {
+                    final isLoading = ref.watch(
+                      adminProvider.select(
+                        (state) => state.isLoading,
+                      ),
+                    );
+
+                    return ElevatedButton.icon(
+                      onPressed: isLoading
+                          ? null
+                          : () async {
+                              final warning = double.tryParse(
+                                warningController.text
+                                    .trim()
+                                    .replaceAll(',', '.'),
+                              );
+
+                              final critical = double.tryParse(
+                                criticalController.text
+                                    .trim()
+                                    .replaceAll(',', '.'),
+                              );
+
+                              final maximumBets = int.tryParse(
+                                maximumBetsController.text.trim(),
+                              );
+
+                              final breakMinutes = int.tryParse(
+                                breakMinutesController.text.trim(),
+                              );
+
+                              if (warning == null ||
+                                  critical == null ||
+                                  maximumBets == null ||
+                                  breakMinutes == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Vui lòng nhập đúng định dạng '
+                                      'cho các giá trị cấu hình.',
+                                    ),
+                                    backgroundColor: Color(0xFFFC536D),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              if (warning < 0 ||
+                                  critical < 0 ||
+                                  warning > 100 ||
+                                  critical > 100) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Ngưỡng cảnh báo phải nằm '
+                                      'trong khoảng từ 0 đến 100%.',
+                                    ),
+                                    backgroundColor: Color(0xFFFC536D),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              if (critical < warning) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Ngưỡng nguy hiểm phải lớn hơn '
+                                      'hoặc bằng ngưỡng cảnh báo.',
+                                    ),
+                                    backgroundColor: Color(0xFFFC536D),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              if (maximumBets < 1 || breakMinutes < 1) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Số cược tối đa và thời gian '
+                                      'nghỉ phải lớn hơn 0.',
+                                    ),
+                                    backgroundColor: Color(0xFFFC536D),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              if (titleController.text.trim().isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Tiêu đề giáo dục không được '
+                                      'để trống.',
+                                    ),
+                                    backgroundColor: Color(0xFFFC536D),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              if (descriptionController.text.trim().isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Nội dung giáo dục không được '
+                                      'để trống.',
+                                    ),
+                                    backgroundColor: Color(0xFFFC536D),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              final notifier = ref.read(
+                                adminProvider.notifier,
+                              );
+
+                              await notifier.updateAntiGamblingSettings(
+                                adminId: currentUser.uid,
+                                warningLossThreshold: warning,
+                                criticalLossThreshold: critical,
+                                maximumBetsPerDay: maximumBets,
+                                breakMinutes: breakMinutes,
+                                enabled: antiEnabled,
+                              );
+
+                              final antiError =
+                                  ref.read(adminProvider).errorMessage;
+
+                              if (antiError != null) {
+                                if (!context.mounted) {
+                                  return;
+                                }
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(antiError),
+                                    backgroundColor: const Color(0xFFFC536D),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              await notifier.updateEducationContent(
+                                adminId: currentUser.uid,
+                                title: titleController.text,
+                                description: descriptionController.text,
+                                videoUrl: videoUrlController.text,
+                                enabled: educationEnabled,
+                              );
+
+                              final educationError =
+                                  ref.read(adminProvider).errorMessage;
+
+                              if (!context.mounted) {
+                                return;
+                              }
+
+                              if (educationError != null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(educationError),
+                                    backgroundColor: const Color(0xFFFC536D),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              Navigator.pop(dialogContext);
+
+                              if (!mounted) return;
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Đã lưu cấu hình Anti-Gambling '
+                                    'và nội dung giáo dục.',
+                                  ),
+                                  backgroundColor: const Color(0xFF28DFB5),
+                                ),
+                              );
+                            },
+                      icon: isLoading
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Color(0xFF67001C),
+                              ),
+                            )
+                          : const Icon(Icons.save_outlined),
+                      label: Text(
+                        isLoading ? 'Đang lưu...' : 'Lưu cấu hình',
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFFB2B7),
+                        foregroundColor: const Color(0xFF67001C),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 13,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSettingsSectionHeader({
+    required IconData icon,
+    required String title,
+    required String description,
+    required Color color,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: Icon(
+            icon,
+            color: color,
+            size: 22,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Color(0xFFE2E2E2),
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Inter',
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                description,
+                style: const TextStyle(
+                  color: Color(0xFFE2BEBF),
+                  fontSize: 12,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSettingsNumberField({
+    required TextEditingController controller,
+    required String label,
+    required String hintText,
+    required String suffixText,
+    required IconData icon,
+    required bool enabled,
+    bool allowDecimal = true,
+  }) {
+    return TextField(
+      controller: controller,
+      enabled: enabled,
+      keyboardType: TextInputType.numberWithOptions(
+        decimal: allowDecimal,
+      ),
+      style: const TextStyle(
+        color: Color(0xFFE2E2E2),
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hintText,
+        suffixText: suffixText,
+        prefixIcon: Icon(
+          icon,
+          color: enabled ? const Color(0xFFFFB2B7) : const Color(0xFF6E6667),
+        ),
+        labelStyle: const TextStyle(
+          color: Color(0xFFE2BEBF),
+        ),
+        hintStyle: TextStyle(
+          color: const Color(0xFFE2BEBF).withOpacity(0.45),
+        ),
+        suffixStyle: const TextStyle(
+          color: Color(0xFFFFB95A),
+          fontWeight: FontWeight.bold,
+        ),
+        filled: true,
+        fillColor: enabled
+            ? const Color(0xFF121414)
+            : const Color(0xFF121414).withOpacity(0.45),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: const Color(0xFFA9898A).withOpacity(0.2),
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: const Color(0xFFA9898A).withOpacity(0.2),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(
+            color: Color(0xFFFFB2B7),
+            width: 1.4,
+          ),
+        ),
+        disabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: const Color(0xFFA9898A).withOpacity(0.08),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSettingsTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hintText,
+    required IconData icon,
+    required bool enabled,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+  }) {
+    return TextField(
+      controller: controller,
+      enabled: enabled,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      style: const TextStyle(
+        color: Color(0xFFE2E2E2),
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hintText,
+        alignLabelWithHint: maxLines > 1,
+        prefixIcon: Padding(
+          padding: EdgeInsets.only(
+            bottom: maxLines > 1 ? 72 : 0,
+          ),
+          child: Icon(
+            icon,
+            color: enabled ? const Color(0xFFFFB2B7) : const Color(0xFF6E6667),
+          ),
+        ),
+        labelStyle: const TextStyle(
+          color: Color(0xFFE2BEBF),
+        ),
+        hintStyle: TextStyle(
+          color: const Color(0xFFE2BEBF).withOpacity(0.45),
+        ),
+        filled: true,
+        fillColor: enabled
+            ? const Color(0xFF121414)
+            : const Color(0xFF121414).withOpacity(0.45),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: const Color(0xFFA9898A).withOpacity(0.2),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(
+            color: Color(0xFFFFB2B7),
+            width: 1.4,
+          ),
+        ),
+        disabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: const Color(0xFFA9898A).withOpacity(0.08),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -4,6 +4,38 @@ import '../../domain/models/match_model.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  Stream<List<Map<String, dynamic>>> watchAdminMatches() {
+    return _firestore.collection('matches').snapshots().map((snapshot) {
+      final matches = snapshot.docs.map((doc) {
+        final data = doc.data();
+
+        final rawDate = data['utcDate'];
+        DateTime utcDate = DateTime.now();
+
+        if (rawDate is Timestamp) {
+          utcDate = rawDate.toDate();
+        } else if (rawDate is DateTime) {
+          utcDate = rawDate;
+        } else if (rawDate is String) {
+          utcDate = DateTime.tryParse(rawDate) ?? DateTime.now();
+        }
+
+        return <String, dynamic>{
+          'id': doc.id,
+          ...data,
+          'utcDate': utcDate,
+        };
+      }).toList();
+
+      matches.sort((a, b) {
+        final firstDate = a['utcDate'] as DateTime;
+        final secondDate = b['utcDate'] as DateTime;
+        return secondDate.compareTo(firstDate);
+      });
+
+      return matches;
+    });
+  }
 
   Future<void> createUserDocument(UserModel user) async {
     await _firestore.collection('users').doc(user.uid).set(user.toFirestore());
@@ -397,8 +429,8 @@ class FirestoreService {
           'amount': (data['amount'] as num?)?.toDouble() ?? 0.0,
           'method': data['method']?.toString() ?? 'Bank Transfer',
           'status': data['status']?.toString() ?? 'pending',
-          'createdAt': (data['createdAt'] as Timestamp?)?.toDate() ??
-              DateTime.fromMillisecondsSinceEpoch(0),
+          'createdAt':
+              (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
         };
       }).toList();
 
@@ -532,6 +564,81 @@ class FirestoreService {
       'status': 'pending',
       'createdAt': FieldValue.serverTimestamp(),
     });
+  }
+// ================= ADMIN MATCHES =================
+
+  Future<void> updateAdminMatchOdds({
+    required String matchId,
+    required double overOdds,
+    required double underOdds,
+    required double line,
+  }) async {
+    await _firestore.collection('matches').doc(matchId).update({
+      'overOdds': overOdds,
+      'underOdds': underOdds,
+      'overUnderLine': line,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    await _firestore.collection('admin_logs').add({
+      'action': 'UPDATE_ODDS',
+      'matchId': matchId,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> forceAdminMatchResult({
+    required String matchId,
+    required String result,
+  }) async {
+    await _firestore.collection('matches').doc(matchId).update({
+      'forcedResult': result,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    await _firestore.collection('admin_logs').add({
+      'action': 'FORCE_RESULT',
+      'matchId': matchId,
+      'result': result,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> updateAdminMatchBettingLock({
+    required String matchId,
+    required bool isLocked,
+  }) async {
+    await _firestore.collection('matches').doc(matchId).update({
+      'isBettingLocked': isLocked,
+    });
+
+    await _firestore.collection('admin_logs').add({
+      'action': isLocked ? 'LOCK_MATCH' : 'UNLOCK_MATCH',
+      'matchId': matchId,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+// ================= ADMIN SETTINGS =================
+
+  Stream<Map<String, dynamic>> watchAdminSettingsData(
+    String adminId,
+  ) {
+    return _firestore
+        .collection('users')
+        .doc(adminId)
+        .snapshots()
+        .map((doc) => doc.data() ?? {});
+  }
+
+  Future<void> updateAdminSettingsData({
+    required String adminId,
+    required Map<String, dynamic> data,
+  }) async {
+    await _firestore.collection('users').doc(adminId).set(
+          data,
+          SetOptions(merge: true),
+        );
   }
 }
 
