@@ -40,13 +40,36 @@ class MatchNotifier extends StateNotifier<MatchState> {
   void _startWatchingMatches() {
     _matchesSubscription?.cancel();
     _matchesSubscription = _firestoreService.streamMatches().listen(
-      (matches) {
+      (firestoreMatches) async {
+        // Lấy thêm các trận từ SQLite cache (các trận đấu từ API đã lưu)
+        List<MatchModel> cachedMatches = [];
+        try {
+          final db = await _dbHelper.database;
+          final List<Map<String, dynamic>> maps = await db.query('match_cache');
+          cachedMatches = maps.map((map) => MatchModel.fromSQLite(map)).toList();
+        } catch (_) {}
+
+        // Gộp hai nguồn, ưu tiên firestoreMatches (simulated)
+        final allMatchIds = <String>{};
+        final allMatches = <MatchModel>[];
+
+        for (var m in firestoreMatches) {
+          allMatchIds.add(m.id);
+          allMatches.add(m);
+        }
+
+        for (var m in cachedMatches) {
+          if (!allMatchIds.contains(m.id)) {
+            allMatches.add(m);
+          }
+        }
+
         final scheduled =
-            matches.where((m) => m.status == MatchStatus.scheduled).toList();
+            allMatches.where((m) => m.status == MatchStatus.scheduled).toList();
         final live =
-            matches.where((m) => m.status == MatchStatus.inPlay).toList();
+            allMatches.where((m) => m.status == MatchStatus.inPlay).toList();
         final finished =
-            matches.where((m) => m.status == MatchStatus.finished).toList();
+            allMatches.where((m) => m.status == MatchStatus.finished).toList();
 
         state = state.copyWith(
           scheduledMatches: scheduled,
@@ -182,20 +205,36 @@ class MatchNotifier extends StateNotifier<MatchState> {
   // Tải danh sách trận đấu từ Firestore (và SQLite) lên State khi khởi chạy
   Future<void> loadFromCache() async {
     try {
-      // Ưu tiên tải từ Firestore trước để lấy các trận giả lập và tỷ lệ cược mới nhất
-      List<MatchModel> matches;
+      List<MatchModel> firestoreMatches = [];
       try {
-        matches = await _firestoreService.getAllMatches();
-      } catch (e) {
-        // Fallback về SQLite nếu mất mạng
+        firestoreMatches = await _firestoreService.getAllMatches();
+      } catch (_) {}
+
+      List<MatchModel> cachedMatches = [];
+      try {
         final db = await _dbHelper.database;
         final List<Map<String, dynamic>> maps = await db.query('match_cache');
-        matches = maps.map((map) => MatchModel.fromSQLite(map)).toList();
+        cachedMatches = maps.map((map) => MatchModel.fromSQLite(map)).toList();
+      } catch (_) {}
+
+      // Gộp: ưu tiên Firestore
+      final allMatchIds = <String>{};
+      final allMatches = <MatchModel>[];
+
+      for (var m in firestoreMatches) {
+        allMatchIds.add(m.id);
+        allMatches.add(m);
       }
 
-      final scheduled = matches.where((m) => m.status == MatchStatus.scheduled).toList();
-      final live = matches.where((m) => m.status == MatchStatus.inPlay).toList();
-      final finished = matches.where((m) => m.status == MatchStatus.finished).toList();
+      for (var m in cachedMatches) {
+        if (!allMatchIds.contains(m.id)) {
+          allMatches.add(m);
+        }
+      }
+
+      final scheduled = allMatches.where((m) => m.status == MatchStatus.scheduled).toList();
+      final live = allMatches.where((m) => m.status == MatchStatus.inPlay).toList();
+      final finished = allMatches.where((m) => m.status == MatchStatus.finished).toList();
 
       state = state.copyWith(
         scheduledMatches: scheduled,

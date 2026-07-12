@@ -10,6 +10,8 @@ import '../../core/router/app_routes.dart';
 import '../../domain/enums/auth_status.dart';
 import '../anti_gambling/loan_trap_screen.dart';
 import '../wallet/wallet_screen.dart';
+import '../matches/matches_screen.dart';
+import '../leagues/leagues_screen.dart';
 import '../arenas/arenas_screen.dart';
 import '../profile/profile_screen.dart';
 import '../betting/my_bets_screen.dart';
@@ -53,8 +55,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
     });
 
+    // Guest chỉ thấy Home (0), Sàn đấu (1), Giải đấu (2)
+    // Logged-in có thêm Ví (3) và Hồ sơ (4)
     final displayIndex =
-    (isGuest && _selectedIndex > 1) ? 0 : _selectedIndex;
+        (isGuest && _selectedIndex > 2) ? 0 : _selectedIndex;
 
     final List<Widget> screens = [
       _buildHomeContent(
@@ -63,6 +67,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         currentUser,
         showLoanTrap,
       ),
+      const MatchesScreen(), // index 1
+      const LeaguesScreen(), // index 2 - Giải đấu (available to all users)
+      if (!isGuest) ...[
+        const WalletScreen(), // index 3
+        ProfileScreen(        // index 4
       const ArenasScreen(),
       if (!isGuest) ...[
         const MyBetsScreen(),
