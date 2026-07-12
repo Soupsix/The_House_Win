@@ -79,3 +79,9 @@ final currentSessionBetsProvider = Provider<List<BetModel>>(
 final settledBetsProvider = Provider<List<BetModel>>(
   (ref) => ref.watch(betProvider.select((s) => s.settledBets)),
 );
+
+// Provider stream 10 phiên gần nhất đã kết toán (để hiển thị lịch sử)
+final recentSessionsProvider = StreamProvider<List<BettingSessionModel>>((ref) {
+  final service = ref.watch(bettingSessionServiceProvider);
+  return service.watchRecentSessions(limit: 10);
+});

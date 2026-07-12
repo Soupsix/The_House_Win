@@ -111,8 +111,9 @@ class FirestoreService {
         throw Exception("Số dư khả dụng không đủ để thực hiện đặt cược");
       }
 
+      // Chỉ khóa tiền, không trừ balance ngay
+      // → availableBalance = balance - lockedAmount hiển thị đúng (chỉ trừ 1 lần)
       transaction.update(walletRef, {
-        'balance': balance - amount,
         'lockedAmount': lockedAmount + amount,
       });
 
@@ -149,7 +150,9 @@ class FirestoreService {
 
       final nextLockedAmount =
           (lockedAmount - amount < 0) ? 0.0 : lockedAmount - amount;
-      final nextBalance = isWin ? (balance + payout) : balance;
+      // Thắng: cộng payout (vốn + lời) vào balance
+      // Thua: trừ tiền đặt cược khỏi balance (mới thực sự mất)
+      final nextBalance = isWin ? (balance + payout) : (balance - amount);
 
       transaction.update(walletRef, {
         'lockedAmount': nextLockedAmount,

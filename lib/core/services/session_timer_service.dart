@@ -13,6 +13,7 @@ class SessionTimerService {
 
   StreamSubscription? _sessionSubscription;
   Timer? _ticker;
+  Timer? _cooldownTimer;
   BettingSessionModel? _activeSession;
 
   final _countdownController = StreamController<int>.broadcast();
@@ -26,12 +27,8 @@ class SessionTimerService {
 
     _sessionSubscription = _sessionService.watchActiveSession().listen((session) async {
       if (session == null) {
-        // Nếu không có phiên nào active, gọi tạo phiên mới
-        try {
-          await _sessionService.createSession();
-        } catch (e) {
-          // Bỏ qua lỗi race condition do client khác tạo phiên trước
-        }
+        // Phiên vừa kết toán (hoặc chưa có phiên nào): tính thời gian chờ và tạo phiên mới
+        _scheduleNextSession();
         return;
       }
 
@@ -48,6 +45,7 @@ class SessionTimerService {
   // Dừng timer — gọi khi app vào background hoặc bị dispose
   void stop() {
     _ticker?.cancel();
+    _cooldownTimer?.cancel();
     _sessionSubscription?.cancel();
     _activeSession = null;
   }
@@ -98,26 +96,69 @@ class SessionTimerService {
         _statusController.add(SessionStatus.settled);
 
         try {
-          final randomResult = Random().nextBool() ? 'over' : 'under';
+          // Tung 3 xúc xắc ngẫu nhiên (1-6)
+          final d1 = Random().nextInt(6) + 1;
+          final d2 = Random().nextInt(6) + 1;
+          final d3 = Random().nextInt(6) + 1;
+          final total = d1 + d2 + d3;
+          // Tổng >= 11 → Tài (over), tổng <= 10 → Xỉu (under)
+          final randomResult = total >= 11 ? 'over' : 'under';
+
           await _sessionService.settleSession(
             sessionId: currentSession.sessionId,
             result: randomResult,
             isAdminOverride: false,
+            dice1: d1,
+            dice2: d2,
+            dice3: d3,
           );
         } catch (e) {
           // Log lỗi kết toán nhưng vẫn cho phép tiếp tục tạo phiên mới
         }
         
-        try {
-          // Khởi tạo hoặc lấy phiên mới tiếp theo
-          await _sessionService.createSession();
-        } catch (_) {}
+        // Sau khi kết toán, đợi đủ 12 giây (tính từ lúc kết toán) rồi mới tạo phiên mới
+        // watchActiveSession() sẽ nhận null và gọi _scheduleNextSession()
+
       } else {
         if (remaining > lockThreshold) {
           _statusController.add(currentSession.status);
         } else {
           _statusController.add(SessionStatus.locked);
         }
+      }
+    });
+  }
+
+  // Tính thời gian cooldown còn lại và lên lịch tạo phiên mới
+  void _scheduleNextSession() {
+    _cooldownTimer?.cancel();
+    _cooldownTimer = null;
+
+    _doScheduleNextSession();
+  }
+
+  Future<void> _doScheduleNextSession() async {
+    int delayMs = 0;
+
+    try {
+      final latest = await _sessionService.getLatestSession();
+      if (latest != null && latest.status == SessionStatus.settled && latest.settledAt != null) {
+        final elapsed = DateTime.now().difference(latest.settledAt!).inMilliseconds;
+        const cooldownMs = BettingSessionService.postSettleCooldown * 1000;
+        final remaining = cooldownMs - elapsed;
+        if (remaining > 0) {
+          delayMs = remaining;
+        }
+      }
+    } catch (_) {
+      // Nếu không lấy được phiên, tạo ngay không trễ
+    }
+
+    _cooldownTimer = Timer(Duration(milliseconds: delayMs), () async {
+      try {
+        await _sessionService.createSession();
+      } catch (_) {
+        // Bỏ qua lỗi race condition do client khác tạo phiên trước
       }
     });
   }
