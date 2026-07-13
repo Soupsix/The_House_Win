@@ -161,7 +161,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
 
   // ── Wallet Card (Virtual Card) ──
   Widget _buildWalletCard(WalletState w, NumberFormat vnd) {
-    final isBroke = w.balance < 50000;
+    final isBroke = w.isBroke;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(24),
@@ -412,7 +412,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Withdraw threshold warning
-          if (w.balance < 50000)
+          if (w.isBroke)
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(

@@ -6,11 +6,24 @@ import 'app_routes.dart';
 import '../../application/auth/auth_provider.dart';
 import '../../domain/enums/auth_status.dart';
 import '../../presentation/auth/login_screen.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'app_routes.dart';
+import '../../application/auth/auth_provider.dart';
+import '../../domain/enums/auth_status.dart';
+import '../../presentation/auth/login_screen.dart';
 import '../../presentation/auth/register_screen.dart';
 import '../../presentation/auth/forgot_password_screen.dart';
 import '../../presentation/home/home_screen.dart';
 import '../../presentation/admin/admin_dashboard_screen.dart';
 import '../../presentation/profile/personal_info_screen.dart';
+import '../../presentation/spin_wheel/screens/spin_wheel_screen.dart';
+import '../../presentation/slot_machine/screens/slot_machine_screen.dart';
+import '../../presentation/home/notification_test_screen.dart';
+import '../../presentation/notification/screens/notification_history_screen.dart';
+import '../../presentation/notification/screens/notification_settings_screen.dart';
 import '../splash_screen.dart';
 
 class GoRouterRefreshStream extends ChangeNotifier {
@@ -122,6 +135,26 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.personalInfo,
         builder: (context, state) => const PersonalInfoScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.spinWheel,
+        builder: (context, state) => const SpinWheelScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.slotMachine,
+        builder: (context, state) => const SlotMachineScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.notificationTest,
+        builder: (context, state) => const NotificationTestScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.notificationHistory,
+        builder: (context, state) => const NotificationHistoryScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.notificationSettings,
+        builder: (context, state) => const NotificationSettingsScreen(),
       ),
     ],
   );

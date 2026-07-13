@@ -6,5 +6,5 @@ class AppConstants {
   static const double initialBalance = 0.0;
 
   // Ngưỡng cháy túi: dưới 50.000 VNĐ
-  static const double brokeThreshold = 50000.0;
+  static const double brokeThreshold = 1000.0;
 }

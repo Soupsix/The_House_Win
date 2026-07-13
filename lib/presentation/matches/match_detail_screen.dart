@@ -8,6 +8,7 @@ import '../../application/auth/auth_provider.dart';
 import '../../domain/enums/bet_choice.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/router/app_routes.dart';
+import 'widgets/ai_analysis_bottom_sheet.dart';
 
 class MatchDetailScreen extends ConsumerStatefulWidget {
   const MatchDetailScreen({super.key});
@@ -216,7 +217,33 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 // Kèo chọn
-                _buildSectionTitle('CHỌN KÈO CÁ CƯỢC'),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildSectionTitle('CHỌN KÈO CÁ CƯỢC'),
+                    GestureDetector(
+                      onTap: () => showAiAnalysisBottomSheet(context, match),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.amberAccent.withValues(alpha: 0.1),
+                          border: Border.all(color: Colors.amberAccent),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.auto_awesome, color: Colors.amberAccent, size: 14),
+                            SizedBox(width: 4),
+                            Text(
+                              'Phân tích AI',
+                              style: TextStyle(color: Colors.amberAccent, fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 12),
                 _buildBetChoicesCard(match),
                 const SizedBox(height: 20),

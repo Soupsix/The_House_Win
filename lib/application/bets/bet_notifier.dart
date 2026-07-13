@@ -13,9 +13,12 @@ import '../../domain/models/bet_model.dart';
 import '../../domain/models/transaction_model.dart';
 import '../../domain/enums/bet_choice.dart';
 import '../../domain/enums/bet_status.dart';
+import '../auth/auth_provider.dart';
+import '../notification/managers/reminder_manager.dart';
 
 // Notifier quản lý các đơn đặt cược bóng đá
 class BetNotifier extends StateNotifier<BetState> implements IBetsSettler {
+  final Ref _ref;
   final FirestoreService _firestoreService;
   final WalletNotifier _walletNotifier;
   final DatabaseHelper _dbHelper;
@@ -23,6 +26,7 @@ class BetNotifier extends StateNotifier<BetState> implements IBetsSettler {
   StreamSubscription? _userPendingBetsSub;
 
   BetNotifier(
+    this._ref,
     this._firestoreService,
     this._walletNotifier,
     this._dbHelper,
@@ -131,6 +135,25 @@ class BetNotifier extends StateNotifier<BetState> implements IBetsSettler {
 
         if (_walletNotifier.state.errorMessage != null) {
           throw Exception(_walletNotifier.state.errorMessage);
+        }
+
+        // Schedule Reminder
+        final matchStartTime = (matchData['utcDate'] as Timestamp?)?.toDate() ?? DateTime.now();
+        final user = _ref.read(authProvider).user;
+        final isEnabled = user?.notificationSettings.upcomingMatch ?? false;
+
+        try {
+          await ReminderManager.scheduleMatchReminder(
+            matchId: draft.matchId!,
+            homeTeam: homeTeam,
+            awayTeam: awayTeam,
+            startTime: matchStartTime,
+            isEnabled: isEnabled,
+          );
+        } catch (e) {
+          // Bỏ qua lỗi báo thức (ví dụ: exact_alarms_not_permitted trên Android 13+)
+          // để không làm gián đoạn luồng đặt cược.
+          print('Lỗi đặt nhắc nhở: $e');
         }
 
         // Lưu cược vào Firestore

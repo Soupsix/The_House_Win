@@ -112,6 +112,7 @@ class FirestoreService {
       final data = walletDoc.data()!;
       final balance = (data['balance'] as num?)?.toDouble() ?? 0.0;
       final lockedAmount = (data['lockedAmount'] as num?)?.toDouble() ?? 0.0;
+      final currentIsBroke = data['isBroke'] as bool? ?? false;
 
       if (type == 'BET_LOCKED') {
         final availableBalance = balance - lockedAmount;
@@ -130,10 +131,12 @@ class FirestoreService {
         // Thắng: cộng payout vào balance
         // Thua: trừ vốn khỏi balance
         final nextBalance = (type == 'BET_WIN') ? (balance + (payout ?? 0.0)) : (balance - amount);
+        final nextIsBroke = currentIsBroke || nextBalance < 1000;
         
         transaction.update(walletRef, {
           'lockedAmount': nextLockedAmount,
           'balance': nextBalance,
+          'isBroke': nextIsBroke,
         });
       }
 
@@ -199,31 +202,23 @@ class FirestoreService {
   // Reset ví về mặc định và xóa lịch sử giao dịch ví của người chơi đó
   Future<void> runResetWalletTransaction(String uid) async {
     final walletRef = _firestore.collection('wallets').doc(uid);
-    final transactionRef = _firestore.collection('transactions').doc();
 
     await _firestore.runTransaction((transaction) async {
       transaction.update(walletRef, {
-        'balance': 0.0,
+        'balance': 1000000.0,
         'lockedAmount': 0.0,
         'isBroke': false,
-      });
-
-      transaction.set(transactionRef, {
-        'userId': uid,
-        'type': 'WALLET_RESET',
-        'amount': 0.0,
-        'createdAt': FieldValue.serverTimestamp(),
       });
     });
 
     // Xóa lịch sử giao dịch
-    final transSnap = await _firestore
+    final transSnap2 = await _firestore
         .collection('transactions')
         .where('userId', isEqualTo: uid)
         .get();
 
     final batch = _firestore.batch();
-    for (var doc in transSnap.docs) {
+    for (var doc in transSnap2.docs) {
       batch.delete(doc.reference);
     }
     await batch.commit();
@@ -621,6 +616,28 @@ class FirestoreService {
           data,
           SetOptions(merge: true),
         );
+  }
+
+  // Cập nhật FCM token
+  Future<void> updateFcmToken(String uid, String token) async {
+    await _firestore.collection('users').doc(uid).update({
+      'fcmToken': token,
+      'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // Cập nhật cài đặt thông báo
+  Future<void> updateNotificationSettings(String uid, Map<String, dynamic> settingsJson) async {
+    await _firestore.collection('users').doc(uid).update({
+      'notificationSettings': settingsJson,
+    });
+  }
+
+  // Cập nhật thời gian mở app lần cuối
+  Future<void> updateLastOpen(String uid) async {
+    await _firestore.collection('users').doc(uid).update({
+      'lastOpen': FieldValue.serverTimestamp(),
+    });
   }
 }
 

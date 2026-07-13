@@ -40,8 +40,8 @@ dependencies:
   
 
   # ── Local Database ────────────────────────────────
-  sqflite: ^2.3.3+1               # cache trận đấu local
-  path: ^1.9.0
+  sqflite: ^2.4.3               # cache trận đấu local
+  path: ^1.9.1
 
   # ── Animation ─────────────────────────────────────
   confetti: ^0.7.0
@@ -70,6 +70,8 @@ dependencies:
   saver_gallery: ^3.0.6           # lưu ảnh export simulation
   connectivity_plus: ^6.0.3       # check kết nối mạng
   package_info_plus: ^8.0.2       # lấy version app
+  firebase_messaging: ^15.2.10
+  flutter_markdown: ^0.7.7+1
 
 dev_dependencies:
   flutter_test:

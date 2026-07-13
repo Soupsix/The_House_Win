@@ -15,7 +15,7 @@ class WalletRepositoryImpl implements IWalletRepository {
       userId: userId,
       balance: initialBalance,
       lockedAmount: 0.0,
-      isBroke: initialBalance <= 0,
+      isBroke: initialBalance < 1000,
       createdAt: DateTime.now(),
     );
     await _firestore.collection('wallets').doc(userId).set(wallet.toFirestore());
@@ -39,11 +39,12 @@ class WalletRepositoryImpl implements IWalletRepository {
       if (!walletDoc.exists) throw Exception("Wallet not found");
 
       final currentBalance = (walletDoc.data()?['balance'] as num?)?.toDouble() ?? 0.0;
+      final currentIsBroke = walletDoc.data()?['isBroke'] as bool? ?? false;
       final newBalance = currentBalance + amount;
 
       transaction.update(walletRef, {
         'balance': newBalance,
-        'isBroke': newBalance <= 0,
+        'isBroke': currentIsBroke || newBalance < 1000,
       });
 
       final transactionRef = _firestore.collection('transactions').doc();
