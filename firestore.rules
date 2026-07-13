@@ -120,5 +120,29 @@ service cloud.firestore {
     match /betting_sessions/{sessionId} {
       allow read, write: if isSignedIn();
     }
+
+    // ─────────────────────────────────────────────
+    // SPIN WHEEL
+    // ─────────────────────────────────────────────
+    match /spin_wheel_configs/{configId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    
+    match /spin_results/{resultId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // ─────────────────────────────────────────────
+    // SLOT MACHINE
+    // ─────────────────────────────────────────────
+    match /slot_machine_configs/{configId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    
+    match /slot_results/{resultId} {
+      allow read, write: if isSignedIn();
+    }
   }
 }

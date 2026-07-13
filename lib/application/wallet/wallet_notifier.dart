@@ -22,7 +22,8 @@ class WalletNotifier extends StateNotifier<WalletState> {
     super.dispose();
   }
 
-  bool _calculateIsBroke(double balance, double lockedAmount) {
+  bool _calculateIsBroke(bool currentIsBroke, double balance, double lockedAmount) {
+    if (currentIsBroke) return true;
     final availableBalance = balance - lockedAmount;
     return availableBalance < AppConstants.brokeThreshold;
   }
@@ -74,6 +75,7 @@ class WalletNotifier extends StateNotifier<WalletState> {
       }
 
       final calculatedIsBroke = _calculateIsBroke(
+        storedIsBroke,
         balance,
         lockedAmount,
       );
@@ -189,6 +191,7 @@ class WalletNotifier extends StateNotifier<WalletState> {
 
   Future<void> checkBrokeThreshold(String uid) async {
     final calculatedIsBroke = _calculateIsBroke(
+      state.isBroke,
       state.balance,
       state.lockedAmount,
     );
@@ -310,6 +313,7 @@ class WalletNotifier extends StateNotifier<WalletState> {
             data['isBroke'] as bool? ?? false;
 
         final calculatedIsBroke = _calculateIsBroke(
+          storedIsBroke,
           balance,
           lockedAmount,
         );

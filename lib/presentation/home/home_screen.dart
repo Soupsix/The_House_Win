@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../application/wallet/wallet_provider.dart';
 import '../../application/anti_gambling/anti_gambling_provider.dart';
 import '../../application/auth/auth_provider.dart';
+import '../../application/notification/notification_provider.dart';
 import '../../core/router/app_routes.dart';
 import '../../domain/enums/auth_status.dart';
 import '../anti_gambling/loan_trap_screen.dart';
@@ -47,6 +48,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final isGuest = authStatus == AuthStatus.unauthenticated;
     final currentUser = ref.watch(currentUserProvider);
     final showLoanTrap = ref.watch(showLoanTrapProvider);
+    
+    // Kích hoạt NotificationProvider để lấy FCM Token ngầm
+    ref.listen(notificationProvider, (previous, next) {});
 
     ref.listen<AuthStatus>(authStatusProvider, (previous, next) {
       if (next == AuthStatus.unauthenticated && _selectedIndex > 1) {
@@ -106,6 +110,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
         ),
         actions: [
+          if (!isGuest)
+            IconButton(
+              icon: const Icon(Icons.notifications_outlined, color: Color(0xFFF5F5F5)),
+              onPressed: () {
+                context.push(AppRoutes.notificationHistory);
+              },
+            ),
           if (isGuest)
             Padding(
               padding: const EdgeInsets.only(right: 16),
@@ -609,6 +620,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     context.go(AppRoutes.login);
                   } else {
                     setState(() => _selectedIndex = 1);
+                  }
+                },
+              ),
+              const SizedBox(width: 16),
+              _buildArenaCard(
+                title: 'Vòng Quay',
+                subtitle: 'Thử vận may ngay',
+                icon: Icons.pie_chart_outline,
+                color: Colors.amber,
+                onTap: () {
+                  if (isGuest) {
+                    context.go(AppRoutes.login);
+                  } else {
+                    context.push('/spin-wheel');
                   }
                 },
               ),

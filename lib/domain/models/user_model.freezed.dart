@@ -26,6 +26,11 @@ mixin _$UserModel {
   bool get isAdmin => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
   String get phoneNumber => throw _privateConstructorUsedError;
+  String? get fcmToken => throw _privateConstructorUsedError;
+  DateTime? get fcmTokenUpdatedAt => throw _privateConstructorUsedError;
+  NotificationSettingsModel get notificationSettings =>
+      throw _privateConstructorUsedError;
+  DateTime? get lastOpen => throw _privateConstructorUsedError;
 
   /// Serializes this UserModel to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -48,7 +53,13 @@ abstract class $UserModelCopyWith<$Res> {
       String displayName,
       bool isAdmin,
       DateTime createdAt,
-      String phoneNumber});
+      String phoneNumber,
+      String? fcmToken,
+      DateTime? fcmTokenUpdatedAt,
+      NotificationSettingsModel notificationSettings,
+      DateTime? lastOpen});
+
+  $NotificationSettingsModelCopyWith<$Res> get notificationSettings;
 }
 
 /// @nodoc
@@ -72,6 +83,10 @@ class _$UserModelCopyWithImpl<$Res, $Val extends UserModel>
     Object? isAdmin = null,
     Object? createdAt = null,
     Object? phoneNumber = null,
+    Object? fcmToken = freezed,
+    Object? fcmTokenUpdatedAt = freezed,
+    Object? notificationSettings = null,
+    Object? lastOpen = freezed,
   }) {
     return _then(_value.copyWith(
       uid: null == uid
@@ -98,7 +113,34 @@ class _$UserModelCopyWithImpl<$Res, $Val extends UserModel>
           ? _value.phoneNumber
           : phoneNumber // ignore: cast_nullable_to_non_nullable
               as String,
+      fcmToken: freezed == fcmToken
+          ? _value.fcmToken
+          : fcmToken // ignore: cast_nullable_to_non_nullable
+              as String?,
+      fcmTokenUpdatedAt: freezed == fcmTokenUpdatedAt
+          ? _value.fcmTokenUpdatedAt
+          : fcmTokenUpdatedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      notificationSettings: null == notificationSettings
+          ? _value.notificationSettings
+          : notificationSettings // ignore: cast_nullable_to_non_nullable
+              as NotificationSettingsModel,
+      lastOpen: freezed == lastOpen
+          ? _value.lastOpen
+          : lastOpen // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
     ) as $Val);
+  }
+
+  /// Create a copy of UserModel
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $NotificationSettingsModelCopyWith<$Res> get notificationSettings {
+    return $NotificationSettingsModelCopyWith<$Res>(_value.notificationSettings,
+        (value) {
+      return _then(_value.copyWith(notificationSettings: value) as $Val);
+    });
   }
 }
 
@@ -116,7 +158,14 @@ abstract class _$$UserModelImplCopyWith<$Res>
       String displayName,
       bool isAdmin,
       DateTime createdAt,
-      String phoneNumber});
+      String phoneNumber,
+      String? fcmToken,
+      DateTime? fcmTokenUpdatedAt,
+      NotificationSettingsModel notificationSettings,
+      DateTime? lastOpen});
+
+  @override
+  $NotificationSettingsModelCopyWith<$Res> get notificationSettings;
 }
 
 /// @nodoc
@@ -138,6 +187,10 @@ class __$$UserModelImplCopyWithImpl<$Res>
     Object? isAdmin = null,
     Object? createdAt = null,
     Object? phoneNumber = null,
+    Object? fcmToken = freezed,
+    Object? fcmTokenUpdatedAt = freezed,
+    Object? notificationSettings = null,
+    Object? lastOpen = freezed,
   }) {
     return _then(_$UserModelImpl(
       uid: null == uid
@@ -164,6 +217,22 @@ class __$$UserModelImplCopyWithImpl<$Res>
           ? _value.phoneNumber
           : phoneNumber // ignore: cast_nullable_to_non_nullable
               as String,
+      fcmToken: freezed == fcmToken
+          ? _value.fcmToken
+          : fcmToken // ignore: cast_nullable_to_non_nullable
+              as String?,
+      fcmTokenUpdatedAt: freezed == fcmTokenUpdatedAt
+          ? _value.fcmTokenUpdatedAt
+          : fcmTokenUpdatedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      notificationSettings: null == notificationSettings
+          ? _value.notificationSettings
+          : notificationSettings // ignore: cast_nullable_to_non_nullable
+              as NotificationSettingsModel,
+      lastOpen: freezed == lastOpen
+          ? _value.lastOpen
+          : lastOpen // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
     ));
   }
 }
@@ -177,7 +246,11 @@ class _$UserModelImpl implements _UserModel {
       required this.displayName,
       required this.isAdmin,
       required this.createdAt,
-      required this.phoneNumber});
+      required this.phoneNumber,
+      this.fcmToken,
+      this.fcmTokenUpdatedAt,
+      this.notificationSettings = const NotificationSettingsModel(),
+      this.lastOpen});
 
   factory _$UserModelImpl.fromJson(Map<String, dynamic> json) =>
       _$$UserModelImplFromJson(json);
@@ -194,10 +267,19 @@ class _$UserModelImpl implements _UserModel {
   final DateTime createdAt;
   @override
   final String phoneNumber;
+  @override
+  final String? fcmToken;
+  @override
+  final DateTime? fcmTokenUpdatedAt;
+  @override
+  @JsonKey()
+  final NotificationSettingsModel notificationSettings;
+  @override
+  final DateTime? lastOpen;
 
   @override
   String toString() {
-    return 'UserModel(uid: $uid, email: $email, displayName: $displayName, isAdmin: $isAdmin, createdAt: $createdAt, phoneNumber: $phoneNumber)';
+    return 'UserModel(uid: $uid, email: $email, displayName: $displayName, isAdmin: $isAdmin, createdAt: $createdAt, phoneNumber: $phoneNumber, fcmToken: $fcmToken, fcmTokenUpdatedAt: $fcmTokenUpdatedAt, notificationSettings: $notificationSettings, lastOpen: $lastOpen)';
   }
 
   @override
@@ -213,13 +295,31 @@ class _$UserModelImpl implements _UserModel {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.phoneNumber, phoneNumber) ||
-                other.phoneNumber == phoneNumber));
+                other.phoneNumber == phoneNumber) &&
+            (identical(other.fcmToken, fcmToken) ||
+                other.fcmToken == fcmToken) &&
+            (identical(other.fcmTokenUpdatedAt, fcmTokenUpdatedAt) ||
+                other.fcmTokenUpdatedAt == fcmTokenUpdatedAt) &&
+            (identical(other.notificationSettings, notificationSettings) ||
+                other.notificationSettings == notificationSettings) &&
+            (identical(other.lastOpen, lastOpen) ||
+                other.lastOpen == lastOpen));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
-      runtimeType, uid, email, displayName, isAdmin, createdAt, phoneNumber);
+      runtimeType,
+      uid,
+      email,
+      displayName,
+      isAdmin,
+      createdAt,
+      phoneNumber,
+      fcmToken,
+      fcmTokenUpdatedAt,
+      notificationSettings,
+      lastOpen);
 
   /// Create a copy of UserModel
   /// with the given fields replaced by the non-null parameter values.
@@ -244,7 +344,11 @@ abstract class _UserModel implements UserModel {
       required final String displayName,
       required final bool isAdmin,
       required final DateTime createdAt,
-      required final String phoneNumber}) = _$UserModelImpl;
+      required final String phoneNumber,
+      final String? fcmToken,
+      final DateTime? fcmTokenUpdatedAt,
+      final NotificationSettingsModel notificationSettings,
+      final DateTime? lastOpen}) = _$UserModelImpl;
 
   factory _UserModel.fromJson(Map<String, dynamic> json) =
       _$UserModelImpl.fromJson;
@@ -261,6 +365,14 @@ abstract class _UserModel implements UserModel {
   DateTime get createdAt;
   @override
   String get phoneNumber;
+  @override
+  String? get fcmToken;
+  @override
+  DateTime? get fcmTokenUpdatedAt;
+  @override
+  NotificationSettingsModel get notificationSettings;
+  @override
+  DateTime? get lastOpen;
 
   /// Create a copy of UserModel
   /// with the given fields replaced by the non-null parameter values.

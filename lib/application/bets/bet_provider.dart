@@ -12,6 +12,7 @@ import '../matches/match_provider.dart';
 final betProvider = StateNotifierProvider<BetNotifier, BetState>(
   (ref) {
     final notifier = BetNotifier(
+      ref,
       ref.read(firestoreServiceProvider),
       ref.read(walletProvider.notifier),
       ref.read(databaseHelperProvider),

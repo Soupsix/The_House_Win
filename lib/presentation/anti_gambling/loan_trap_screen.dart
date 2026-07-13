@@ -70,38 +70,7 @@ class LoanTrapScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.red,
-                        ),
-                      ),
-                      child: const Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.warning_amber_rounded,
-                            color: Colors.red,
-                            size: 35,
-                          ),
-                          SizedBox(height: 10),
-                          Text(
-                            'Đây là tình huống mô phỏng nhằm giáo dục '
-                            'người chơi.\n'
-                            'Đừng bao giờ vay tiền để gỡ cược ngoài đời thật.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.white,
-                              height: 1.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+
                     const SizedBox(height: 28),
                     SizedBox(
                       width: double.infinity,

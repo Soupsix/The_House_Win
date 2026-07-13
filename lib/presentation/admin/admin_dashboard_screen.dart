@@ -4436,4 +4436,171 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       ],
     );
   }
+
+  Widget _buildSpinWheelTab() {
+    return const AdminSpinWheelTab();
+  }
+}
+
+class AdminSpinWheelTab extends StatefulWidget {
+  const AdminSpinWheelTab({super.key});
+  @override
+  State<AdminSpinWheelTab> createState() => _AdminSpinWheelTabState();
+}
+
+class _AdminSpinWheelTabState extends State<AdminSpinWheelTab> {
+  bool _isLoading = true;
+  String? _error;
+  Map<String, dynamic>? _configData;
+  final _formKey = GlobalKey<FormState>();
+  
+  @override
+  void initState() {
+    super.initState();
+    _loadConfig();
+  }
+
+  Future<void> _loadConfig() async {
+    try {
+      final snap = await FirebaseFirestore.instance.collection('spin_wheel_configs').doc('default_config').get();
+      if (snap.exists) {
+        setState(() {
+          _configData = snap.data();
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _error = 'Chưa có cấu hình Vòng Quay. Vui lòng vào giao diện người chơi để hệ thống tự khởi tạo trước!';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() { _error = e.toString(); _isLoading = false; });
+    }
+  }
+  
+  Future<void> _saveConfig() async {
+    if (!_formKey.currentState!.validate()) return;
+    _formKey.currentState!.save();
+    
+    // Validate sum of probabilities
+    double totalProb = 0.0;
+    for (var seg in _configData!['segments']) {
+      totalProb += seg['probability'];
+    }
+    if ((totalProb - 1.0).abs() > 0.001) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tổng Tỷ lệ trúng (Probability) của tất cả các ô phải đúng bằng 1.0 (100%)!')));
+      return;
+    }
+    
+    setState(() => _isLoading = true);
+    try {
+      await FirebaseFirestore.instance.collection('spin_wheel_configs').doc('default_config').update(_configData!);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lưu thành công! Vòng quay đã được cập nhật tỷ lệ mới.'), backgroundColor: Colors.green));
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+    }
+    setState(() => _isLoading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) return Center(child: Text(_error!, style: const TextStyle(color: Colors.red)));
+    if (_configData == null) return const SizedBox();
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Cấu Hình Vòng Quay (BETA)', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+            const SizedBox(height: 8),
+            const Text('Chú ý: Tổng Tỷ lệ trúng của tất cả các ô phải bằng 1.0 (100%). Ví dụ: 0.4 + 0.35 + 0.15 + 0.08 + 0.015 + 0.005 = 1.0', style: TextStyle(color: Colors.amber)),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    initialValue: _configData!['minBet'].toString(),
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(labelText: 'Cược tối thiểu (Xu)', labelStyle: TextStyle(color: Colors.white70)),
+                    keyboardType: TextInputType.number,
+                    onSaved: (val) => _configData!['minBet'] = double.tryParse(val ?? '0') ?? 0,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextFormField(
+                    initialValue: _configData!['maxBet'].toString(),
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(labelText: 'Cược tối đa (Xu)', labelStyle: TextStyle(color: Colors.white70)),
+                    keyboardType: TextInputType.number,
+                    onSaved: (val) => _configData!['maxBet'] = double.tryParse(val ?? '0') ?? 0,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 32),
+            const Text('Các Ô Thưởng (Segments)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+            const SizedBox(height: 16),
+            ...List.generate((_configData!['segments'] as List).length, (index) {
+              final seg = _configData!['segments'][index];
+              return Card(
+                color: const Color(0xFF2A2D2D),
+                margin: const EdgeInsets.only(bottom: 16),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: TextFormField(
+                          initialValue: seg['label'],
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(labelText: 'Nhãn (Label)', labelStyle: TextStyle(color: Colors.white70)),
+                          onSaved: (val) => seg['label'] = val,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        flex: 1,
+                        child: TextFormField(
+                          initialValue: seg['multiplier'].toString(),
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(labelText: 'Hệ số x', labelStyle: TextStyle(color: Colors.white70)),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          onSaved: (val) => seg['multiplier'] = double.tryParse(val ?? '0') ?? 0,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        flex: 2,
+                        child: TextFormField(
+                          initialValue: seg['probability'].toString(),
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(labelText: 'Tỷ lệ (Vd: 0.15 = 15%)', labelStyle: TextStyle(color: Colors.white70)),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          onSaved: (val) => seg['probability'] = double.tryParse(val ?? '0') ?? 0,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _saveConfig,
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE94560), minimumSize: const Size(200, 50)),
+              child: const Text('Lưu Thay Đổi', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
 }
